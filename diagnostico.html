@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico — site Ana Nunes</title>
+<style>
+body{font-family:system-ui,-apple-system,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;line-height:1.6;color:#1E1A16;background:#F8F3EC}
+h1{font-size:1.5rem;margin-bottom:4px}
+p.sub{margin-top:0;color:#6B6154}
+table{border-collapse:collapse;width:100%;margin:24px 0;background:#FFFDF9}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #E3D9CB;vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:#6B6154}
+.ok{color:#1B7F3B;font-weight:700}
+.ko{color:#B3261E;font-weight:700}
+.wait{color:#6B6154}
+code{background:#EFE6D8;padding:1px 5px;border-radius:3px;font-size:.85em;word-break:break-all}
+#resumo{padding:16px;border-left:4px solid #9C4A2F;background:#FFFDF9;margin:24px 0;font-size:1.05rem}
+img.amostra{max-width:220px;border:1px solid #E3D9CB;margin-top:8px}
+</style>
+</head>
+<body>
+
+<h1>Diagnóstico do site da Ana Nunes</h1>
+<p class="sub">Abre este ficheiro no navegador (Chrome, Safari, Firefox). Ele testa, a partir do teu computador, se as imagens do blogue conseguem ser carregadas. Diz-me o que aparece na tabela.</p>
+
+<div id="resumo">A correr os testes…</div>
+
+<table>
+  <thead><tr><th>Teste</th><th>Resultado</th></tr></thead>
+  <tbody id="linhas"></tbody>
+</table>
+
+<h2 style="font-size:1.1rem">Amostra</h2>
+<p class="sub">Se vires aqui uma pintura, o problema não são os endereços.</p>
+<img class="amostra" id="amostra" alt="Amostra">
+
+<script>
+var TOKEN='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhiu1V4P9pGAyJIWpwrrkC3ZhaGO9rPwmL5rz7Y2l0OXM2ggjqSSsYaBoZgM8aQh4Ei-CksYsJAfWxc77mx7WJw8ywUWxWVdX0gMjdv-4TD6cBCg1XY6IIEE0DGp_hiikXWol4eJyvgOALdCQH5SwhIhcUDK0CZOD19Mpl2z79BrtgVcu8z1kBV7A';
+var FICHEIRO='/20231001_103212.jpg';
+
+var testes = [
+  {nome:'Imagem — tamanho publicado <code>/s320/</code>',  url: TOKEN+'/s320'+FICHEIRO,  tipo:'img'},
+  {nome:'Imagem — tamanho nativo <code>/s2311/</code>',    url: TOKEN+'/s2311'+FICHEIRO, tipo:'img'},
+  {nome:'Imagem — tamanho inventado <code>/s1600/</code>', url: TOKEN+'/s1600'+FICHEIRO, tipo:'img'},
+  {nome:'Feed do blogue (JSONP)',                          url:'https://oleosdeananunes.blogspot.com/feeds/posts/default?alt=json-in-script&max-results=1&callback=__diag', tipo:'jsonp'},
+  {nome:'Google Fonts',                                    url:'https://fonts.gstatic.com/s/playfairdisplay/v37/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2', tipo:'fetch'}
+];
+
+var corpo=document.getElementById('linhas'), resultados=[];
+
+testes.forEach(function(t,i){
+  var tr=document.createElement('tr');
+  tr.innerHTML='<td>'+t.nome+'</td><td class="wait" id="r'+i+'">a testar…</td>';
+  corpo.appendChild(tr);
+  marcar(i,t);
+});
+
+function definir(i,ok,txt){
+  var c=document.getElementById('r'+i);
+  c.className = ok ? 'ok' : 'ko';
+  c.textContent = txt;
+  resultados[i]=ok;
+  resumir();
+}
+
+function marcar(i,t){
+  if(t.tipo==='img'){
+    var im=new Image();
+    var feito=false;
+    im.onload=function(){ if(!feito){feito=true; definir(i,true,'CARREGOU ('+im.naturalWidth+'×'+im.naturalHeight+')');} };
+    im.onerror=function(){ if(!feito){feito=true; definir(i,false,'FALHOU');} };
+    setTimeout(function(){ if(!feito){feito=true; definir(i,false,'SEM RESPOSTA (15s)');} },15000);
+    im.src=t.url;
+  } else if(t.tipo==='jsonp'){
+    window.__diag=function(j){
+      var n=(j&&j.feed&&j.feed.entry)?j.feed.entry.length:0;
+      definir(i,true,'CARREGOU ('+n+' post lido)');
+    };
+    var s=document.createElement('script');
+    var feito=false;
+    s.onerror=function(){ if(!feito){feito=true; definir(i,false,'FALHOU');} };
+    setTimeout(function(){ if(!feito && resultados[i]===undefined){feito=true; definir(i,false,'SEM RESPOSTA (15s)');} },15000);
+    s.src=t.url; document.body.appendChild(s);
+  } else {
+    fetch(t.url,{mode:'no-cors'}).then(function(){ definir(i,true,'CARREGOU'); })
+      .catch(function(){ definir(i,false,'FALHOU'); });
+  }
+}
+
+function resumir(){
+  var r=document.getElementById('resumo');
+  var feitos=resultados.filter(function(x){return x!==undefined;}).length;
+  if(feitos<testes.length){ r.textContent='A correr os testes… ('+feitos+'/'+testes.length+')'; return; }
+  var imagensOk = resultados[0]||resultados[1]||resultados[2];
+  if(imagensOk && resultados[3]) r.innerHTML='<strong>Tudo bem.</strong> As imagens e o feed do blogue carregam a partir do teu computador. Se mesmo assim não as vires no site, o problema está no site e não na ligação — diz-me.';
+  else if(!imagensOk && !resultados[3]) r.innerHTML='<strong>Nada externo carrega.</strong> Ou não há ligação à internet, ou estás a abrir o ficheiro dentro de uma pré-visualização/rede que bloqueia pedidos ao Google. Tenta abrir o ficheiro directamente no navegador, fora de qualquer app.';
+  else if(!imagensOk) r.innerHTML='<strong>O feed carrega mas as imagens não.</strong> As fotografias no Blogger podem estar com permissões restritas. Nesse caso a solução é alojar as imagens junto do site.';
+  else r.innerHTML='<strong>As imagens carregam mas o feed não.</strong> O site funciona com a lista gravada, mas não se actualiza sozinho a partir do blogue.';
+}
+
+document.getElementById('amostra').src=TOKEN+'/s320'+FICHEIRO;
+</script>
+</body>
+</html>
