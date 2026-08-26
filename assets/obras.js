@@ -56,7 +56,11 @@ function esc(s){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
   });
 }
-function pad(n){ return n<10 ? ('0'+n) : String(n); }
+function pad(n){
+  n=Number(n);
+  if(!isFinite(n)) return '';
+  return n<10 ? ('0'+n) : String(n);
+}
 
 var PREFIXOS = [
   {re:/^tela\s+a\s+[óo]leo\s*[-–—:]\s*/i,      m:'Óleo sobre tela'},
@@ -83,8 +87,28 @@ function parseTitulo(raw){
 
 /* ------------------------------------------------------------------ */
 var OBRAS=[], VISIVEIS=[], FILTRO='Todos', PAGINA=1, falhas=0, pronto=false;
+var VISTAS=[4,2,1], VISTA=4;   /* obras por fila, à escolha de quem visita */
+
+function lerVista(){
+  try{
+    var v=parseInt(localStorage.getItem('ana-vista'),10);
+    if(VISTAS.indexOf(v)>=0) VISTA=v;
+  }catch(e){}
+}
+function guardarVista(){
+  try{ localStorage.setItem('ana-vista',String(VISTA)); }catch(e){}
+}
+function porPaginaEfectiva(){
+  var n=larguraColunas();
+  if(n>=4) return 12;      /* 3 filas */
+  if(n===2) return 8;      /* 4 filas */
+  return 6;                /* uma por fila: página curta */
+}
+function maxColunas(){
+  return window.innerWidth<620 ? 1 : (window.innerWidth<1020 ? 2 : 4);
+}
 var raiz, modo, porPagina, limite;
-var elFiltros, elGrelha, elEstado, elAviso, elPaginacao, elContagem;
+var elFiltros, elGrelha, elEstado, elAviso, elPaginacao, elContagem, elVista;
 
 window.__anaFeed = function(json){
   try{
@@ -149,9 +173,13 @@ function paginaDoEndereco(){
 
 /* --------------------------- destaque (entrada) --------------------------- */
 function desenharDestaque(){
-  var obras=OBRAS.slice(0,limite);
+  var obras=OBRAS.slice(0,limite).map(function(o,k){
+    var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
+  });
   VISIVEIS=obras;
-  elGrelha.innerHTML = colunas(obras, larguraColunas());
+  var nCols=larguraColunas();
+  elGrelha.setAttribute('data-cols', String(nCols));
+  elGrelha.innerHTML = colunas(obras, nCols);
   ligarCartoes();
 }
 
@@ -173,9 +201,44 @@ function desenharFiltros(){
   });
 }
 
+/* --------------------------- selector de vista --------------------------- */
+/* ícone: tantas colunas quantas as obras por fila */
+function iconeVista(n){
+  var vb=18, gap=2, largura=(vb-gap*(n-1))/n, r='';
+  for(var i=0;i<n;i++){
+    r+='<rect x="'+(i*(largura+gap)).toFixed(2)+'" y="0" width="'+largura.toFixed(2)+'" height="14" rx="1"/>';
+  }
+  return '<svg width="18" height="14" viewBox="0 0 18 14" fill="currentColor" aria-hidden="true">'+r+'</svg>';
+}
+function desenharVista(){
+  if(!elVista) return;
+  var maxC=maxColunas();
+  elVista.innerHTML='<span class="rot mono">Vista</span>'+
+    VISTAS.map(function(n){
+      var cabe = n<=maxC;
+      var descricao = (n===1?'Uma obra':n+' obras')+' por fila';
+      return '<button type="button" data-n="'+n+'"'+
+        ' aria-pressed="'+(n===VISTA)+'"'+
+        ' title="'+(cabe?descricao:'Não cabe neste ecrã')+'"'+
+        (cabe?'':' disabled')+
+        ' aria-label="'+descricao+'">'+iconeVista(n)+'</button>';
+    }).join('');
+  elVista.querySelectorAll('button[data-n]').forEach(function(b){
+    b.addEventListener('click',function(){
+      if(b.disabled) return;
+      var primeira=(PAGINA-1)*porPagina;      /* índice da obra que está no topo */
+      VISTA=parseInt(b.dataset.n,10);
+      guardarVista();
+      PAGINA=Math.floor(primeira/porPaginaEfectiva())+1;
+      desenhar();
+    });
+  });
+}
+
 /* --------------------------- grelha + paginação --------------------------- */
 function larguraColunas(){
-  return window.innerWidth<620 ? 1 : (window.innerWidth<1020 ? 2 : 3);
+  if(modo==='destaque') return Math.min(3, maxColunas());
+  return Math.min(VISTA, maxColunas());   /* a escolha nunca ultrapassa o que cabe */
 }
 function colunas(lista, n){
   var cols=[]; for(var c=0;c<n;c++) cols.push('');
@@ -201,6 +264,7 @@ function cartao(o, numero){
 
 function desenhar(){
   var filtradas = OBRAS.filter(function(o){ return FILTRO==='Todos' || o.m===FILTRO; });
+  porPagina = porPaginaEfectiva();
   var totalPaginas = Math.max(1, Math.ceil(filtradas.length/porPagina));
   if(PAGINA>totalPaginas) PAGINA=totalPaginas;
 
@@ -216,8 +280,11 @@ function desenhar(){
     elContagem.textContent = filtradas.length + (filtradas.length===1?' obra':' obras');
   }
 
-  elGrelha.innerHTML = colunas(VISIVEIS, larguraColunas());
+  var nCols=larguraColunas();
+  elGrelha.setAttribute('data-cols', String(nCols));
+  elGrelha.innerHTML = colunas(VISIVEIS, nCols);
   ligarCartoes();
+  desenharVista();
   desenharPaginacao(totalPaginas, filtradas.length, inicio);
 }
 
@@ -323,6 +390,7 @@ function construirLightbox(){
   });
 }
 function abrir(i,origem){
+  if(!isFinite(i) || !VISIVEIS[i]) return;
   idx=i; ultimoFoco=origem||document.activeElement;
   pintar(); lb.classList.add('open');
   document.body.classList.add('lb-open');
@@ -355,7 +423,11 @@ function montar(){
   limite = parseInt(raiz.dataset.limite||'6',10);
 
   raiz.innerHTML =
-    (modo==='galeria' ? '<div class="filters" id="filtros" role="group" aria-label="Filtrar obras por técnica"></div>' : '')+
+    (modo==='galeria' ?
+      '<div class="barra-galeria">'+
+        '<div class="filters" id="filtros" role="group" aria-label="Filtrar obras por técnica"></div>'+
+        '<div class="vista" id="vista" role="group" aria-label="Obras por fila"></div>'+
+      '</div>' : '')+
     '<div class="grid" id="grelha"></div>'+
     '<p class="state" id="estado">A carregar as obras…</p>'+
     '<div class="aviso" id="aviso" hidden><p><strong>As imagens não carregaram.</strong> '+
@@ -365,18 +437,22 @@ function montar(){
     (modo==='galeria' ? '<nav class="paginacao" id="paginacao" aria-label="Páginas da galeria" hidden></nav>' : '');
 
   elFiltros=raiz.querySelector('#filtros');
+  elVista=raiz.querySelector('#vista');
   elGrelha=raiz.querySelector('#grelha');
   elEstado=raiz.querySelector('#estado');
   elAviso=raiz.querySelector('#aviso');
   elPaginacao=raiz.querySelector('#paginacao');
   elContagem=document.getElementById('contagem');
 
+  lerVista();
   construirLightbox();
   carregar();
 
-  var nc=larguraColunas(), rt;
+  var nc=larguraColunas(), mc=maxColunas(), rt;
   window.addEventListener('resize',function(){
-    var n=larguraColunas(); if(n===nc) return; nc=n;
+    var n=larguraColunas(), m=maxColunas();
+    if(n===nc && m===mc) return;
+    nc=n; mc=m;
     clearTimeout(rt); rt=setTimeout(function(){
       if(!OBRAS.length) return;
       if(modo==='destaque') desenharDestaque(); else desenhar();

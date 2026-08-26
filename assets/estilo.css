@@ -333,3 +333,27 @@ main,footer{position:relative;z-index:1}
 /* a secção Sobre deixa de ser opaca, senão tapava as ondas */
 #sobre{background:color-mix(in srgb,var(--card) 78%,transparent)}
 @media(prefers-reduced-motion:reduce){ :root{ --ondas-opacidade:.2 } }
+
+/* ============================ barra da galeria ============================ */
+.barra-galeria{
+  display:flex;flex-wrap:wrap;gap:var(--s-2);
+  align-items:center;justify-content:space-between;margin-bottom:var(--s-4);
+}
+.barra-galeria .filters{margin-bottom:0}
+.vista{display:flex;align-items:center;gap:var(--s-1)}
+.vista .rot{white-space:nowrap}
+.vista button{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid var(--border);color:var(--muted-fg);
+  min-width:44px;min-height:44px;padding:0 10px;border-radius:2px;cursor:pointer;
+  transition:border-color .2s,color .2s,background .2s;
+}
+.vista button svg{display:block}
+.vista button:hover:not(:disabled){border-color:var(--muted-fg);color:var(--fg)}
+.vista button[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
+.vista button:disabled{opacity:.35;cursor:default}
+/* uma por fila: não deixar a obra ocupar a largura toda do ecrã */
+.grid[data-cols="1"] .card{max-width:820px;margin-left:auto;margin-right:auto}
+/* quatro por fila: legenda um pouco mais contida */
+.grid[data-cols="4"] .card .t{font-size:1.08rem}
+@media(max-width:620px){ .vista{display:none} }
