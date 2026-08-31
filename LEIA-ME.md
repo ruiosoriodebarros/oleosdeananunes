@@ -3,17 +3,37 @@
 O site passou a ter **páginas separadas**, em vez de uma única página muito comprida.
 
 ```
-index.html        Início — título, citação, 6 obras recentes, atalhos
-obra.html         Obra — catálogo completo, com filtros e paginação (12 por página)
-sobre.html        Sobre
-contacto.html     Contacto
-diagnostico.html  Ferramenta de teste (não faz parte do site, não publicar)
-assets/estilo.css Aspecto de todas as páginas
-assets/obras.js   Motor da galeria + lista de segurança das obras
-assets/ondas.js   Fundo animado (ondas)
-favicon.ico       Ícone do separador (a raiz é onde os navegadores o procuram)
-assets/favicon-*  Ícone em vários tamanhos + apple-touch-icon
+inicio/index.html   Início        ->  /inicio/
+index.html          reencaminha para /inicio/  (raiz do site)
+obra/index.html     Obra          ->  /obra/
+sobre/index.html    Sobre         ->  /sobre/
+contacto/index.html Contacto      ->  /contacto/
+obra.html           reencaminha para /obra/  (endereços antigos)
+sobre.html          reencaminha para /sobre/
+contacto.html       reencaminha para /contacto/
+diagnostico.html    Ferramenta de teste (não faz parte do site)
+assets/estilo.css   Aspecto de todas as páginas
+assets/obras.js     Motor da galeria + lista de segurança das obras
+assets/ondas.js     Fundo animado (ondas)
+favicon.ico         Ícone do separador
+assets/favicon-*    Ícone em vários tamanhos + apple-touch-icon
 ```
+
+## Endereços sem .html
+
+O GitHub Pages não tem regras de reescrita: serve o ficheiro que existe, com o nome que tem. A forma de obter `/obra` em vez de `/obra.html` é dar a cada página a sua pasta com um `index.html` lá dentro — qualquer servidor entrega o `index.html` quando lhe pedem a pasta.
+
+Resultado: `.../oleosdeananunes/obra/`. O `.html` desaparece, mas fica a barra final. Escrever `/obra` sem barra funciona à mesma — o GitHub Pages acrescenta-a sozinho.
+
+A entrada segue a mesma regra e vive em `/inicio/`. O `index.html` da raiz tem de continuar a existir — é o que o GitHub Pages serve quando alguém abre `.../oleosdeananunes/` — mas passou a ser um reencaminhamento para `/inicio/`, para o endereço visível ser sempre o mesmo das outras páginas.
+
+Se preferires a entrada em `/` (é o que a maioria dos sites faz, e poupa um salto), basta trocar: pôr o conteúdo de `inicio/index.html` na raiz, com os caminhos sem `../`, e apagar a pasta `inicio`.
+
+Para tirar também a barra seria preciso um servidor com reescrita. O Netlify faz isso de origem: serve `obra.html` em `/obra`, sem barra e sem pastas.
+
+Os antigos `obra.html`, `sobre.html` e `contacto.html` ficaram como reencaminhamentos, para não partir endereços já partilhados. Podem ser apagados daqui a uns meses.
+
+Como os recursos passaram a ser referidos com `../assets/...` nas subpáginas, o site funciona em qualquer base — `utilizador.github.io/oleosdeananunes/`, um domínio próprio, ou aberto a partir de uma pasta local.
 
 Para publicar, é a **pasta inteira** que vai — não só um ficheiro. Arrastar para `app.netlify.com/drop` funciona tal como está.
 

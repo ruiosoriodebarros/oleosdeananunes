@@ -16,7 +16,9 @@
 (function(){
 'use strict';
 
+var VERSAO = '2026-08-26.3';
 var BLOG = 'oleosdeananunes.blogspot.com';
+try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
 var FALLBACK = [
  {t:"Bordadeira de Arraiolos",m:"Óleo sobre tela",y:2023,img:"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhiu1V4P9pGAyJIWpwrrkC3ZhaGO9rPwmL5rz7Y2l0OXM2ggjqSSsYaBoZgM8aQh4Ei-CksYsJAfWxc77mx7WJw8ywUWxWVdX0gMjdv-4TD6cBCg1XY6IIEE0DGp_hiikXWol4eJyvgOALdCQH5SwhIhcUDK0CZOD19Mpl2z79BrtgVcu8z1kBV7A/s320/20231001_103212.jpg"},
@@ -68,7 +70,7 @@ var PREFIXOS = [
   {re:/^pintura\s+a\s+[óo]leo\s*[-–—:]\s*/i,   m:'Óleo sobre tela'},
   {re:/^[óo]leo\s+sobre\s+tela\s*[-–—:]\s*/i,  m:'Óleo sobre tela'},
   {re:/^[óo]leo\s+sobre\s+papel\s*[-–—:]\s*/i, m:'Óleo sobre papel'},
-  {re:/^ilustra[çc][õo]?[eê]?s?\s*[-–—:]\s*/i, m:'Ilustração'},
+  {re:/^ilustra[çc][ãõao]?[eo]?s?\s*[-–—:]\s*/i, m:'Ilustração'},
   {re:/^desenho\s*[-–—:]\s*/i,                 m:'Desenho'}
 ];
 function parseTitulo(raw){
