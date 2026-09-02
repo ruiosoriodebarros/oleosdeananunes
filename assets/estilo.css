@@ -356,4 +356,54 @@ main,footer{position:relative;z-index:1}
 .grid[data-cols="1"] .card{max-width:820px;margin-left:auto;margin-right:auto}
 /* quatro por fila: legenda um pouco mais contida */
 .grid[data-cols="4"] .card .t{font-size:1.08rem}
-@media(max-width:620px){ .vista{display:none} }
+/* em ecrãs estreitos o selector fica, mas só com as opções que cabem */
+
+/* ============================ carrossel (coverflow) ============================ */
+.carrossel{ --cf-card:clamp(200px,32vw,420px); margin-top:var(--s-2); position:relative }
+.cf-frame{
+  position:relative;cursor:grab;overflow:hidden;
+  padding:var(--s-4) 0;outline:none;touch-action:pan-y;
+}
+.cf-frame:active{cursor:grabbing}
+.cf-frame:focus-visible{outline:2px solid var(--ring);outline-offset:4px;border-radius:2px}
+.cf-palco{position:relative;height:var(--cf-card);transform-style:preserve-3d;user-select:none}
+.cf-cartao{
+  position:absolute;left:50%;top:0;width:var(--cf-card);aspect-ratio:1;
+  background:var(--card);border:1px solid var(--border);border-radius:2px;
+  overflow:hidden;will-change:transform,opacity;cursor:pointer;
+  box-shadow:0 2px 6px rgba(30,26,22,.06),0 26px 50px -26px rgba(30,26,22,.5);
+  display:flex;align-items:center;justify-content:center;padding:14px;
+}
+.cf-cartao img{
+  width:100%;height:100%;object-fit:contain;user-select:none;-webkit-user-drag:none;
+}
+.cf-cartao.falhou img{display:none}
+.cf-cartao.falhou::after{
+  content:attr(data-titulo);font-family:var(--display);font-style:italic;
+  font-size:1.05rem;color:var(--muted-fg);text-align:center;
+}
+.cf-nav{
+  position:absolute;top:calc(50% - 28px);z-index:200;transform:translateY(-50%);
+  width:48px;height:48px;display:flex;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(8px);
+  border:1px solid var(--border);border-radius:2px;color:var(--fg);cursor:pointer;
+  transition:background .2s,border-color .2s;
+}
+.cf-nav:hover{background:var(--card);border-color:var(--muted-fg)}
+.cf-nav:focus-visible{outline:2px solid var(--ring);outline-offset:3px}
+.cf-prev{left:0}
+.cf-next{right:0}
+.cf-legenda{text-align:center;margin-top:var(--s-2);min-height:76px}
+.cf-legenda .cf-t{
+  font-family:var(--display);font-size:clamp(1.3rem,2.6vw,1.9rem);
+  line-height:1.2;letter-spacing:-.01em;
+}
+.cf-legenda .cf-s{margin-top:8px}
+.cf-legenda .cf-n{margin-top:10px;color:var(--primary-deep)}
+@media(max-width:620px){
+  .carrossel{ --cf-card:min(64vw,300px) }
+  .cf-nav{width:44px;height:44px}
+}
+@media(prefers-reduced-motion:reduce){
+  .cf-cartao{transition:none}
+}

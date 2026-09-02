@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-08-26.3';
+var VERSAO = '2026-09-02.1';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -89,11 +89,13 @@ function parseTitulo(raw){
 
 /* ------------------------------------------------------------------ */
 var OBRAS=[], VISIVEIS=[], FILTRO='Todos', PAGINA=1, falhas=0, pronto=false;
-var VISTAS=[4,2,1], VISTA=4;   /* obras por fila, à escolha de quem visita */
+var VISTAS=[4,2,1,'c'], VISTA='c';   /* 'c' = carrossel (por defeito), ou 4/2/1 obras por fila */
 
 function lerVista(){
   try{
-    var v=parseInt(localStorage.getItem('ana-vista'),10);
+    var v=localStorage.getItem('ana-vista');
+    if(v==='c'){ VISTA='c'; return; }
+    v=parseInt(v,10);
     if(VISTAS.indexOf(v)>=0) VISTA=v;
   }catch(e){}
 }
@@ -110,7 +112,7 @@ function maxColunas(){
   return window.innerWidth<620 ? 1 : (window.innerWidth<1020 ? 2 : 4);
 }
 var raiz, modo, porPagina, limite;
-var elFiltros, elGrelha, elEstado, elAviso, elPaginacao, elContagem, elVista;
+var elFiltros, elGrelha, elEstado, elAviso, elPaginacao, elContagem, elVista, elCarrossel;
 
 window.__anaFeed = function(json){
   try{
@@ -204,8 +206,14 @@ function desenharFiltros(){
 }
 
 /* --------------------------- selector de vista --------------------------- */
-/* ícone: tantas colunas quantas as obras por fila */
+/* ícone: tantas colunas quantas as obras por fila; 'c' = três cartões em perspectiva */
 function iconeVista(n){
+  if(n==='c'){
+    return '<svg width="20" height="14" viewBox="0 0 20 14" fill="currentColor" aria-hidden="true">'+
+      '<rect x="0" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
+      '<rect x="16" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
+      '<rect x="6" y="0" width="8" height="14" rx="1.5"/></svg>';
+  }
   var vb=18, gap=2, largura=(vb-gap*(n-1))/n, r='';
   for(var i=0;i<n;i++){
     r+='<rect x="'+(i*(largura+gap)).toFixed(2)+'" y="0" width="'+largura.toFixed(2)+'" height="14" rx="1"/>';
@@ -215,10 +223,13 @@ function iconeVista(n){
 function desenharVista(){
   if(!elVista) return;
   var maxC=maxColunas();
+  var estreito = window.innerWidth < 620;
+  var opcoes = estreito ? VISTAS.filter(function(n){ return n==='c' || n<=maxC; }) : VISTAS;
   elVista.innerHTML='<span class="rot mono">Vista</span>'+
-    VISTAS.map(function(n){
-      var cabe = n<=maxC;
-      var descricao = (n===1?'Uma obra':n+' obras')+' por fila';
+    opcoes.map(function(n){
+      var cabe = (n==='c') || n<=maxC;
+      var descricao = (n==='c') ? 'Carrossel — uma obra de cada vez, em perspectiva'
+                    : (n===1?'Uma obra':n+' obras')+' por fila';
       return '<button type="button" data-n="'+n+'"'+
         ' aria-pressed="'+(n===VISTA)+'"'+
         ' title="'+(cabe?descricao:'Não cabe neste ecrã')+'"'+
@@ -229,9 +240,9 @@ function desenharVista(){
     b.addEventListener('click',function(){
       if(b.disabled) return;
       var primeira=(PAGINA-1)*porPagina;      /* índice da obra que está no topo */
-      VISTA=parseInt(b.dataset.n,10);
+      VISTA = (b.dataset.n==='c') ? 'c' : parseInt(b.dataset.n,10);
       guardarVista();
-      PAGINA=Math.floor(primeira/porPaginaEfectiva())+1;
+      PAGINA = (VISTA==='c') ? 1 : Math.floor(primeira/porPaginaEfectiva())+1;
       desenhar();
     });
   });
@@ -240,6 +251,7 @@ function desenharVista(){
 /* --------------------------- grelha + paginação --------------------------- */
 function larguraColunas(){
   if(modo==='destaque') return Math.min(3, maxColunas());
+  if(VISTA==='c') return 1;
   return Math.min(VISTA, maxColunas());   /* a escolha nunca ultrapassa o que cabe */
 }
 function colunas(lista, n){
@@ -281,6 +293,22 @@ function desenhar(){
   if(elContagem){
     elContagem.textContent = filtradas.length + (filtradas.length===1?' obra':' obras');
   }
+
+  if(VISTA==='c'){
+    /* o carrossel é um anel: mostra tudo, sem paginação */
+    VISIVEIS = filtradas.map(function(o,k){
+      var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
+    });
+    elGrelha.innerHTML=''; elGrelha.hidden=true;
+    elCarrossel.hidden=false;
+    if(filtradas.length) desenharCarrossel(VISIVEIS); else elCarrossel.innerHTML='';
+    desenharVista();
+    if(elPaginacao){ elPaginacao.innerHTML=''; elPaginacao.hidden=true; }
+    return;
+  }
+  cfParar();
+  elCarrossel.hidden=true; elCarrossel.innerHTML='';
+  elGrelha.hidden=false;
 
   var nCols=larguraColunas();
   elGrelha.setAttribute('data-cols', String(nCols));
@@ -353,6 +381,212 @@ function ligarCartoes(){
 function verificarFalhas(){
   if(!elAviso) return;
   elAviso.hidden = !(VISIVEIS.length>0 && falhas>=VISIVEIS.length);
+}
+
+
+/* --------------------------- carrossel (coverflow) ---------------------------
+   Porto para JavaScript simples do componente React "CoverflowCarousel".
+   A mecânica é a mesma do original:
+   - uma posição fraccionária (cfPos) é a única fonte de verdade;
+   - as transformações são escritas directamente no DOM, porque sessenta
+     actualizações por segundo não têm de passar pelo resto do código;
+   - o anel fecha-se dobrando a distância para o lado mais curto, sem clones
+     nem reordenar nós;
+   - a inclinação e o recuo abrandam com a distância (expoente `falloff`), de
+     modo que o segundo cartão não fecha de lado como faria uma rampa linear.
+   ---------------------------------------------------------------------------- */
+var CF = { rotate:44, depth:0.6, perspective:3, falloff:0.56, fade:0.1, gap:0.05, loop:true };
+
+var cfPos=0, cfAlvo=0, cfLargura=0, cfRaf=null, cfArrasto=null, cfSel=0;
+var cfCartoes=[], cfFrame=null, cfPalco=null, cfObs=null, cfLista=[];
+
+function cfParar(){
+  if(cfRaf!==null){ cancelAnimationFrame(cfRaf); cfRaf=null; }
+  if(cfObs){ cfObs.disconnect(); cfObs=null; }
+}
+function cfIndice(pos){
+  var n=cfLista.length;
+  return ((Math.round(pos)%n)+n)%n;
+}
+function cfPintar(){
+  var n=cfLista.length, largura=cfLargura;
+  if(!largura || !n) return;
+  var passo = largura*(1+CF.gap);
+  for(var i=0;i<cfCartoes.length;i++){
+    var cartao=cfCartoes[i]; if(!cartao) continue;
+    var desvio = i - cfPos;
+    if(CF.loop){
+      desvio = ((desvio%n)+n)%n;
+      if(desvio > n/2) desvio -= n;
+    }
+    var d = Math.abs(desvio);
+    var rampa = Math.pow(d, CF.falloff);
+    /* travado antes do perfil, para um cartão distante nunca virar as costas */
+    var inclinacao = Math.min(CF.rotate*rampa, 82) * (desvio<0?-1:(desvio>0?1:0));
+    cartao.style.transform =
+      'translateX(calc(-50% + '+(desvio*passo)+'px)) '+
+      'translateZ('+(-CF.depth*largura*rampa)+'px) '+
+      'rotateY('+(-inclinacao)+'deg)';
+    /* a meia volta o cartão salta para o outro lado do anel: tem de já lá não estar */
+    var bordo = CF.loop ? Math.min(1, Math.max(0, n/2 - d)) : 1;
+    cartao.style.opacity = String(Math.max(0, 1 - CF.fade*d) * bordo);
+    cartao.style.zIndex  = String(100 - Math.round(d));
+  }
+}
+function cfLegenda(){
+  var o=cfLista[cfSel]; if(!o) return;
+  var t=document.getElementById('cf-t'), sub=document.getElementById('cf-s'), num=document.getElementById('cf-n');
+  if(t) t.textContent=o.t;
+  if(sub) sub.textContent=o.m+(o.y?' · '+o.y:'');
+  if(num) num.textContent=pad(cfSel+1)+' / '+pad(cfLista.length);
+}
+function cfAssentar(alvo){
+  if(cfRaf!==null){ cancelAnimationFrame(cfRaf); cfRaf=null; }
+  cfAlvo=alvo;
+  var novo=cfIndice(alvo);
+  if(novo!==cfSel){ cfSel=novo; cfLegenda(); }
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    cfPos=alvo; cfPintar(); return;      /* sem animação, salta para o sítio */
+  }
+  var passo=function(){
+    var falta = alvo - cfPos;
+    if(Math.abs(falta) < 0.0004){ cfPos=alvo; cfPintar(); cfRaf=null; return; }
+    cfPos += falta*0.16;                 /* atenuação exponencial, não mola */
+    cfPintar();
+    cfRaf=requestAnimationFrame(passo);
+  };
+  cfRaf=requestAnimationFrame(passo);
+}
+function cfLimite(pos){
+  return CF.loop ? pos : Math.max(0, Math.min(cfLista.length-1, pos));
+}
+function cfIr(i){
+  var n=cfLista.length;
+  var alvo = CF.loop ? i + Math.round((cfAlvo-i)/n)*n : i;   /* pelo lado mais curto */
+  cfAssentar(cfLimite(alvo));
+}
+function cfEmpurrar(passos){
+  cfAssentar(cfLimite(Math.round(cfAlvo)+passos));
+}
+/* qual o cartão debaixo de um ponto, pela caixa projectada e pelo z-index */
+function cfCartaoEm(x,y){
+  var melhor=-1, melhorZ=-1;
+  for(var i=0;i<cfCartoes.length;i++){
+    var c=cfCartoes[i];
+    if(!c || parseFloat(c.style.opacity||'1') < 0.08) continue;
+    var r=c.getBoundingClientRect();
+    if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom){
+      var z=parseInt(c.style.zIndex||'0',10);
+      if(z>melhorZ){ melhorZ=z; melhor=i; }
+    }
+  }
+  return melhor;
+}
+function cfMedir(){
+  var c=cfCartoes[0]; if(!c) return;
+  cfLargura=c.offsetWidth;
+  cfPintar();
+}
+
+function desenharCarrossel(lista){
+  cfParar();
+  cfLista = lista;
+  cfPos=0; cfAlvo=0; cfSel=0;
+
+  var cartoes = lista.map(function(o,i){
+    return '<div class="cf-cartao" data-i="'+i+'" role="group" aria-roledescription="obra" '+
+      'aria-label="'+esc(o.t)+' — '+(i+1)+' de '+lista.length+'" data-titulo="'+esc(o.t)+'">'+
+      '<img src="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" data-try="0" draggable="false" '+
+      'alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
+      '</div>';
+  }).join('');
+
+  elCarrossel.innerHTML =
+    '<div class="cf-frame" id="cf-frame" tabindex="0" role="region" '+
+      'aria-roledescription="carrossel" aria-label="Obras em carrossel">'+
+      '<div class="cf-palco" id="cf-palco">'+cartoes+'</div>'+
+    '</div>'+
+    '<button class="cf-nav cf-prev" type="button" aria-label="Obra anterior">'+
+      '<svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden="true"><path d="M9 1L2 8l7 7" stroke="currentColor" stroke-width="1.4"/></svg></button>'+
+    '<button class="cf-nav cf-next" type="button" aria-label="Obra seguinte">'+
+      '<svg width="10" height="16" viewBox="0 0 10 16" fill="none" aria-hidden="true"><path d="M1 1l7 7-7 7" stroke="currentColor" stroke-width="1.4"/></svg></button>'+
+    '<div class="cf-legenda">'+
+      '<div class="cf-t" id="cf-t"></div>'+
+      '<div class="cf-s mono" id="cf-s"></div>'+
+      '<div class="cf-n mono" id="cf-n"></div>'+
+    '</div>';
+
+  cfFrame = elCarrossel.querySelector('#cf-frame');
+  cfPalco = elCarrossel.querySelector('#cf-palco');
+  cfCartoes = [].slice.call(elCarrossel.querySelectorAll('.cf-cartao'));
+  cfFrame.style.perspective = 'calc(var(--cf-card) * '+CF.perspective+')';
+
+  /* imagens: mesma cadeia de recurso da grelha */
+  cfCartoes.forEach(function(cartao){
+    var im=cartao.querySelector('img');
+    im.addEventListener('error',function(){
+      var n=parseInt(im.dataset.try||'0',10), mini=im.dataset.mini||'';
+      if(n===0 && mini && mini!==im.src){ im.dataset.try='1'; im.src=mini; return; }
+      cartao.classList.add('falhou');
+    });
+  });
+
+  /* arrastar com o rato ou o dedo */
+  cfFrame.addEventListener('pointerdown',function(e){
+    if(cfRaf!==null){ cancelAnimationFrame(cfRaf); cfRaf=null; }
+    cfFrame.setPointerCapture(e.pointerId);
+    cfAlvo=cfPos;
+    cfArrasto={ id:e.pointerId, x:e.clientX, y:e.clientY, pos:cfPos, v:0,
+                t:performance.now(), andou:0 };
+  });
+  cfFrame.addEventListener('pointermove',function(e){
+    if(!cfArrasto || cfArrasto.id!==e.pointerId) return;
+    var passo=cfLargura*(1+CF.gap); if(!passo) return;
+    var agora=performance.now(), antes=cfPos;
+    cfPos=cfLimite(cfArrasto.pos - (e.clientX-cfArrasto.x)/passo);
+    cfArrasto.v=((cfPos-antes)/Math.max(agora-cfArrasto.t,1))*1000;  /* cartões por segundo */
+    cfArrasto.t=agora;
+    cfArrasto.andou=Math.max(cfArrasto.andou, Math.abs(e.clientX-cfArrasto.x));
+    var i=cfIndice(cfPos);
+    if(i!==cfSel){ cfSel=i; cfLegenda(); }
+    cfPintar();
+  });
+  var fim=function(e){
+    if(!cfArrasto || cfArrasto.id!==e.pointerId) return;
+    var v=cfArrasto.v, andou=cfArrasto.andou; cfArrasto=null;
+    if(andou<6){
+      /* Foi um toque, não um arrasto. O elementFromPoint não é de fiar com
+         cartões rodados em 3D (o Chromium achata o contexto e devolve sempre
+         o de cima), por isso procuramos pela caixa projectada de cada cartão
+         e ficamos com o que estiver mais à frente. */
+      var i=cfCartaoEm(e.clientX, e.clientY);
+      if(i!==-1){
+        if(i===cfSel) abrir(i, cfFrame);   /* o do meio abre em grande */
+        else cfIr(i);                      /* os outros vêm para o meio */
+        return;
+      }
+    }
+    /* deixa o impulso levar, mas nunca mais do que dois cartões */
+    var levado=Math.max(-2, Math.min(2, v*0.18));
+    cfAssentar(cfLimite(Math.round(cfPos+levado)));
+  };
+  cfFrame.addEventListener('pointerup',fim);
+  cfFrame.addEventListener('pointercancel',fim);
+  cfFrame.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft'){ e.preventDefault(); cfEmpurrar(-1); }
+    else if(e.key==='ArrowRight'){ e.preventDefault(); cfEmpurrar(1); }
+    else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); abrir(cfSel, cfFrame); }
+  });
+  elCarrossel.querySelector('.cf-prev').addEventListener('click',function(){ cfEmpurrar(-1); });
+  elCarrossel.querySelector('.cf-next').addEventListener('click',function(){ cfEmpurrar(1); });
+
+  cfMedir();
+  if('ResizeObserver' in window){
+    cfObs=new ResizeObserver(cfMedir);
+    cfObs.observe(cfFrame);
+  }
+  cfLegenda();
+  cfPintar();
 }
 
 /* --------------------------- lightbox --------------------------- */
@@ -431,6 +665,7 @@ function montar(){
         '<div class="vista" id="vista" role="group" aria-label="Obras por fila"></div>'+
       '</div>' : '')+
     '<div class="grid" id="grelha"></div>'+
+    (modo==='galeria' ? '<div class="carrossel" id="carrossel" hidden></div>' : '')+
     '<p class="state" id="estado">A carregar as obras…</p>'+
     '<div class="aviso" id="aviso" hidden><p><strong>As imagens não carregaram.</strong> '+
       'As fotografias das obras estão alojadas no blogue da Ana (Blogger/Google) e são pedidas quando alguém abre a página. '+
@@ -441,6 +676,7 @@ function montar(){
   elFiltros=raiz.querySelector('#filtros');
   elVista=raiz.querySelector('#vista');
   elGrelha=raiz.querySelector('#grelha');
+  elCarrossel=raiz.querySelector('#carrossel');
   elEstado=raiz.querySelector('#estado');
   elAviso=raiz.querySelector('#aviso');
   elPaginacao=raiz.querySelector('#paginacao');
@@ -457,6 +693,7 @@ function montar(){
     nc=n; mc=m;
     clearTimeout(rt); rt=setTimeout(function(){
       if(!OBRAS.length) return;
+      if(VISTA==='c' && modo==='galeria'){ cfMedir(); desenharVista(); return; }
       if(modo==='destaque') desenharDestaque(); else desenhar();
     },160);
   });
