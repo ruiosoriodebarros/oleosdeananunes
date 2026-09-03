@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-03.1';
+var VERSAO = '2026-09-03.2';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 

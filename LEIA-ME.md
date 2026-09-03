@@ -47,7 +47,15 @@ Com 28 obras (e a crescer), uma página só obrigava a percorrer a galeria toda 
 - Cada página de galeria tem endereço próprio (`obra.html#pagina-2`), por isso pode ser partilhada.
 - A numeração das obras é contínua entre páginas — a obra 13 continua a ser a 13.
 
-A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar. **No telemóvel essas 6 obras aparecem em carrossel** — empilhadas em coluna faziam da entrada uma página de seis ecrãs e enterravam os atalhos para o Sobre e o Contacto. Em carrossel a entrada passou a ter três ecrãs, e os atalhos chegam ao segundo. No computador continua a grelha de três colunas.
+A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar. **No telemóvel a entrada é outra.** Em coluna, as seis obras faziam dela uma página de 6,6 ecrãs, com o Contacto só a aparecer ao fim de 5,6. Três coisas mudaram, e só abaixo dos 620px:
+
+1. As obras recentes vão em carrossel — ocupam um ecrã em vez de seis, e continuam lá todas.
+2. Os atalhos para o **Sobre** e o **Contacto** sobem para logo a seguir ao herói, antes das obras.
+3. O herói perde a fila de etiquetas ("Óleo sobre tela", "Retrato"…), que em coluna ocupava três linhas sem acrescentar nada, e o título encolhe.
+
+**O Contacto passou de 5,6 para 0,87 ecrãs** — está a menos de um deslize. A entrada inteira mede agora 2,6 ecrãs. No computador não mudou nada: grelha de três colunas, etiquetas visíveis, atalhos no fim.
+
+Como os atalhos passam à frente, a numeração decorativa (Nº 01, 02, 03) ficaria fora de ordem no telemóvel, por isso está escondida nessa largura.
 
 ## Vista da galeria
 

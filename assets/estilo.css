@@ -407,3 +407,23 @@ main,footer{position:relative;z-index:1}
 @media(prefers-reduced-motion:reduce){
   .cf-cartao{transition:none}
 }
+
+/* ===================== entrada no telemóvel: caminho curto ao contacto =====================
+   Em ecrã estreito, quem chega tinha de percorrer o herói inteiro e todas as
+   obras recentes antes de encontrar o Sobre e o Contacto. Aqui os atalhos
+   sobem para logo a seguir ao herói, e o herói perde a fila de etiquetas —
+   que em coluna ocupava três linhas sem dizer nada de novo. */
+@media(max-width:620px){
+  .hero{padding-top:clamp(28px,7vw,48px);padding-bottom:var(--s-3)}
+  .hero-meta{display:none}
+  h1.name{font-size:clamp(2.2rem,11vw,3.4rem)}
+  .hero .pull{font-size:1.05rem}
+  .entrada > .shell{display:flex;flex-direction:column}
+  .entrada > .shell > .atalhos{order:-1;margin-top:0;margin-bottom:var(--s-5)}
+  .entrada > .shell > .cta{align-self:flex-start}
+  /* com os atalhos à frente, a numeração passaria a ler-se 02, 03, 01;
+     num telemóvel estes números decorativos não valem a confusão */
+  .entrada .sec-head .mono.accent,
+  .entrada .atalho .mono.accent{display:none}
+  .entrada .atalho h3{margin-top:0}
+}
