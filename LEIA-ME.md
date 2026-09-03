@@ -47,7 +47,7 @@ Com 28 obras (e a crescer), uma página só obrigava a percorrer a galeria toda 
 - Cada página de galeria tem endereço próprio (`obra.html#pagina-2`), por isso pode ser partilhada.
 - A numeração das obras é contínua entre páginas — a obra 13 continua a ser a 13.
 
-A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar.
+A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar. **No telemóvel essas 6 obras aparecem em carrossel** — empilhadas em coluna faziam da entrada uma página de seis ecrãs e enterravam os atalhos para o Sobre e o Contacto. Em carrossel a entrada passou a ter três ecrãs, e os atalhos chegam ao segundo. No computador continua a grelha de três colunas.
 
 ## Vista da galeria
 
@@ -79,7 +79,7 @@ Quem chega pela primeira vez vê o carrossel. A partir daí, a escolha fica guar
 
 O número de obras por página acompanha a densidade — 12 com 4 por fila, 8 com 2, 6 com 1 — para que a página não fique interminável na vista grande. Ao mudar de vista, a obra que estava no topo continua na página que passa a ser mostrada, em vez de saltar para o início.
 
-Em ecrãs estreitos a escolha é limitada ao que cabe: até 2 por fila abaixo de 1020px, e sempre 1 abaixo de 620px (aí o selector desaparece, por não ter nada para escolher).
+Em ecrãs estreitos a escolha é limitada ao que cabe: até 2 por fila abaixo de 1020px, e 1 ou carrossel abaixo de 620px.
 
 ## Fundo animado
 

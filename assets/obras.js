@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-02.1';
+var VERSAO = '2026-09-03.1';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -181,6 +181,19 @@ function desenharDestaque(){
     var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
   });
   VISIVEIS=obras;
+
+  if(window.innerWidth < 620){
+    /* No telemóvel, seis obras em coluna faziam da entrada uma página de seis
+       ecrãs e enterravam o Sobre e o Contacto. Em carrossel ocupam um. */
+    elGrelha.innerHTML=''; elGrelha.hidden=true;
+    elCarrossel.hidden=false;
+    desenharCarrossel(obras);
+    return;
+  }
+  cfParar();
+  elCarrossel.hidden=true; elCarrossel.innerHTML='';
+  elGrelha.hidden=false;
+
   var nCols=larguraColunas();
   elGrelha.setAttribute('data-cols', String(nCols));
   elGrelha.innerHTML = colunas(obras, nCols);
@@ -534,7 +547,11 @@ function desenharCarrossel(lista){
   /* arrastar com o rato ou o dedo */
   cfFrame.addEventListener('pointerdown',function(e){
     if(cfRaf!==null){ cancelAnimationFrame(cfRaf); cfRaf=null; }
-    cfFrame.setPointerCapture(e.pointerId);
+    /* Em toque, o navegador pode já não ter o ponteiro activo quando chegamos
+       aqui e o setPointerCapture atira uma excepção que matava o arrasto todo.
+       A captura é uma conveniência, não um requisito: sem ela os eventos
+       continuam a chegar ao frame. */
+    try{ cfFrame.setPointerCapture(e.pointerId); }catch(err){}
     cfAlvo=cfPos;
     cfArrasto={ id:e.pointerId, x:e.clientX, y:e.clientY, pos:cfPos, v:0,
                 t:performance.now(), andou:0 };
@@ -665,7 +682,7 @@ function montar(){
         '<div class="vista" id="vista" role="group" aria-label="Obras por fila"></div>'+
       '</div>' : '')+
     '<div class="grid" id="grelha"></div>'+
-    (modo==='galeria' ? '<div class="carrossel" id="carrossel" hidden></div>' : '')+
+    '<div class="carrossel" id="carrossel" hidden></div>'+
     '<p class="state" id="estado">A carregar as obras…</p>'+
     '<div class="aviso" id="aviso" hidden><p><strong>As imagens não carregaram.</strong> '+
       'As fotografias das obras estão alojadas no blogue da Ana (Blogger/Google) e são pedidas quando alguém abre a página. '+
