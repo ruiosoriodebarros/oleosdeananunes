@@ -117,6 +117,19 @@ Convenção de títulos a manter nos posts:
 
 O ano vem da data do post. Os filtros são gerados a partir do que existe. Se o blogue estiver inacessível, entra a lista de 28 obras gravada no `assets/obras.js`.
 
+## Peso das imagens (porque o telemóvel deixou de crashar)
+
+O Blogger publica dois endereços por obra: a miniatura (`/s320/`) e o tamanho nativo (`/s2311/` ou semelhante, com vários MB). O carrossel mostra as 28 obras ao mesmo tempo — carregá-las todas em tamanho nativo esgotava a memória e o Safari do iPhone matava a página com *"Um problema ocorreu repetidamente"*.
+
+Regra actual:
+
+- **Cartões da galeria e do carrossel: miniatura.** No telemóvel, sempre. No computador, a grelha usa o tamanho nativo (as molduras são grandes e o aparelho aguenta).
+- **Obra aberta em grande: tamanho nativo, sempre.** É aí que a qualidade conta.
+- **Carrossel no computador:** a obra que está ao centro sobe para o tamanho nativo, 320 ms depois de o movimento assentar e pré-carregada para não piscar. Nunca há mais de duas em memória — a terceira faz a mais antiga voltar à miniatura, libertando o bitmap.
+- **Carrossel no telemóvel:** não sobe. A moldura tem ~250px e a miniatura chega; subir só gastaria a memória que causava o problema.
+
+Medido com fotografias realistas: a página Obra no telemóvel passou de dezenas de MB para **0,16 MB**; a entrada, para 0,03 MB.
+
 ## Se as imagens não aparecerem
 
 **Abre primeiro o `diagnostico.html`** no navegador. Testa a partir do teu computador se as fotografias e o feed conseguem ser carregados, e diz numa frase onde está o problema.

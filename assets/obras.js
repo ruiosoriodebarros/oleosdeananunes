@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-03.2';
+var VERSAO = '2026-09-03.3';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -279,7 +279,7 @@ function cartao(o, numero){
     'aria-label="Ver '+esc(o.t)+' em detalhe">'+
       '<div class="frame skeleton" data-titulo="'+esc(o.t)+'">'+
         '<img loading="lazy" decoding="async" data-try="0" data-mini="'+esc(o.mini||o.img)+'" '+
-        'src="'+esc(o.img)+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
+        'src="'+esc(window.innerWidth<620 ? (o.mini||o.img) : o.img)+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>'+
       '<figcaption>'+
         '<span class="idx" aria-hidden="true">'+pad(numero)+'</span>'+
@@ -446,8 +446,42 @@ function cfPintar(){
     cartao.style.zIndex  = String(100 - Math.round(d));
   }
 }
+/* Vinte e oito fotografias em tamanho nativo ao mesmo tempo esgotam a memória
+   de um telemóvel e o Safari mata a página. Os cartões ficam pela miniatura;
+   só o do meio sobe de qualidade, e depois de pré-carregado para não piscar. */
+var cfNitidos=[], cfRelogioNitidez=null;
+
+function cfDesnitidar(i){
+  var c=cfCartoes[i]; if(!c) return;
+  var im=c.querySelector('img'); if(!im) return;
+  if(im.dataset.mini && im.src!==im.dataset.mini){
+    im.src=im.dataset.mini;          /* devolve a memória do bitmap grande */
+    im.dataset.nitido='';
+  }
+}
+function cfNitidez(){
+  clearTimeout(cfRelogioNitidez);
+  /* No telemóvel a moldura tem ~250px: a miniatura chega e sobe-la só gastaria
+     memória — que é exactamente o que fazia o Safari matar a página. */
+  if(window.innerWidth < 620) return;
+  cfRelogioNitidez=setTimeout(function(){
+    var alvo=cfSel, cartao=cfCartoes[alvo]; if(!cartao) return;
+    var im=cartao.querySelector('img'); if(!im) return;
+    var grande=im.dataset.grande;
+    if(!grande || im.dataset.nitido==='1' || im.src===grande) return;
+    var pre=new Image();
+    pre.onload=function(){
+      if(cfSel!==alvo || cfCartoes[alvo]!==cartao) return;   /* já saiu do meio */
+      im.src=grande; im.dataset.nitido='1';
+      cfNitidos.push(alvo);
+      while(cfNitidos.length>2) cfDesnitidar(cfNitidos.shift());
+    };
+    pre.src=grande;
+  }, 320);   /* só depois de o movimento assentar */
+}
 function cfLegenda(){
   var o=cfLista[cfSel]; if(!o) return;
+  cfNitidez();
   var t=document.getElementById('cf-t'), sub=document.getElementById('cf-s'), num=document.getElementById('cf-n');
   if(t) t.textContent=o.t;
   if(sub) sub.textContent=o.m+(o.y?' · '+o.y:'');
@@ -503,13 +537,16 @@ function cfMedir(){
 
 function desenharCarrossel(lista){
   cfParar();
+  clearTimeout(cfRelogioNitidez);
+  cfNitidos=[];
   cfLista = lista;
   cfPos=0; cfAlvo=0; cfSel=0;
 
   var cartoes = lista.map(function(o,i){
     return '<div class="cf-cartao" data-i="'+i+'" role="group" aria-roledescription="obra" '+
       'aria-label="'+esc(o.t)+' — '+(i+1)+' de '+lista.length+'" data-titulo="'+esc(o.t)+'">'+
-      '<img src="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" data-try="0" draggable="false" '+
+      '<img loading="lazy" decoding="async" draggable="false" data-try="0" '+
+      'src="'+esc(o.mini||o.img)+'" data-grande="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" '+
       'alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>';
   }).join('');
@@ -538,8 +575,8 @@ function desenharCarrossel(lista){
   cfCartoes.forEach(function(cartao){
     var im=cartao.querySelector('img');
     im.addEventListener('error',function(){
-      var n=parseInt(im.dataset.try||'0',10), mini=im.dataset.mini||'';
-      if(n===0 && mini && mini!==im.src){ im.dataset.try='1'; im.src=mini; return; }
+      var n=parseInt(im.dataset.try||'0',10), grande=im.dataset.grande||'';
+      if(n===0 && grande && grande!==im.src){ im.dataset.try='1'; im.src=grande; return; }
       cartao.classList.add('falhou');
     });
   });
