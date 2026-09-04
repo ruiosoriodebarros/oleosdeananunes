@@ -59,16 +59,17 @@ Como os atalhos passam à frente, a numeração decorativa (Nº 01, 02, 03) fica
 
 ## Vista da galeria
 
-No canto direito da barra de filtros há um selector **Vista**, com quatro ícones:
+No canto direito da barra de filtros há um selector **Vista**, com três ícones em que o número de barras é o número de obras por fila:
 
-- **▮▮▮▮** — quatro por fila, vista de catálogo, para percorrer muita obra depressa.
+- **▮▮▮▮** — quatro por fila, vista de catálogo. É a vista por defeito.
 - **▮▮** — duas por fila, meio-termo.
 - **▮** — uma por fila, grande, centrada até 820px.
-- **▪▮▪** — **carrossel**: as obras em perspectiva, uma de cada vez ao centro. **É a vista por defeito.**
 
-Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o mesmo texto vai em `aria-label`.
+Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o mesmo texto vai em `aria-label`. Quando o ecrã só permite uma opção, o selector não aparece — não seria escolha nenhuma.
 
-### O carrossel
+**O carrossel foi retirado desta página.** Continua a servir a entrada no telemóvel, que é onde ganha: seis obras num ecrã em vez de seis. A página Obra volta a ser sempre grelha, com paginação.
+
+### O carrossel (agora só na entrada, no telemóvel)
 
 É o componente *CoverflowCarousel* (React + Tailwind + TypeScript) reescrito em JavaScript simples, porque o site não usa React nem passo de compilação. A mecânica é a do original, com os mesmos valores por defeito: `rotate 44 · depth 0.6 · perspective 3 · falloff 0.56 · fade 0.1 · gap 0.05 · loop`.
 
@@ -76,7 +77,6 @@ Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o 
 - Tocar num cartão lateral traz-o para o meio; tocar no do meio abre a obra em grande.
 - Setas ← → do teclado percorrem; Enter abre. As setas nos cantos fazem o mesmo ao clique.
 - O anel fecha-se: depois da última obra vem a primeira, sem clones nem reordenar nós.
-- Sem paginação — mostra o catálogo inteiro, e os filtros por técnica continuam a funcionar.
 - Com `prefers-reduced-motion` não há animação: salta directamente para a obra escolhida.
 
 Duas diferenças face ao original, ambas deliberadas. Os cartões mostram a pintura **contida** numa moldura quadrada com passe-partout, em vez de cortada a toda a largura — cortar uma tela para caber num quadrado é inaceitável num site de pintura. E o toque é decidido pela geometria dos cartões e não por `elementFromPoint`, porque o Chromium não faz teste de toque fiável em elementos rodados em 3D e os cartões laterais ficavam mortos ao clique.
@@ -129,6 +129,15 @@ Regra actual:
 - **Carrossel no telemóvel:** não sobe. A moldura tem ~250px e a miniatura chega; subir só gastaria a memória que causava o problema.
 
 Medido com fotografias realistas: a página Obra no telemóvel passou de dezenas de MB para **0,16 MB**; a entrada, para 0,03 MB.
+
+### Camadas na GPU
+
+Havia uma segunda causa, independente do peso das imagens — e foi esta que realmente derrubava o telemóvel. Cada cartão em 3D com `will-change:transform` vira uma camada composta na GPU; 28 camadas de 250px a DPR 3 são dezenas de MB de textura, e o iOS mata a página por isso mesmo com as fotografias já leves.
+
+Duas mudanças:
+
+- **Só existem os cartões dentro do alcance** — 3 de cada lado no telemóvel (7 no total), 5 no computador (11). Os restantes ficam em `display:none`: sem caixa, sem camada, sem custo. O anel continua a fechar-se, e os cartões voltam ao fluxo quando se aproximam.
+- **No telemóvel o `will-change` está desligado.** Com poucos cartões visíveis deixa de compensar e só reserva memória.
 
 ## Se as imagens não aparecerem
 

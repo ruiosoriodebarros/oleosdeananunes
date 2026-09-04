@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-03.3';
+var VERSAO = '2026-09-04.1';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -89,12 +89,13 @@ function parseTitulo(raw){
 
 /* ------------------------------------------------------------------ */
 var OBRAS=[], VISIVEIS=[], FILTRO='Todos', PAGINA=1, falhas=0, pronto=false;
-var VISTAS=[4,2,1,'c'], VISTA='c';   /* 'c' = carrossel (por defeito), ou 4/2/1 obras por fila */
+var VISTAS=[4,2,1], VISTA=4;   /* obras por fila. O carrossel deixou de estar aqui;
+                               continua a servir a entrada no telemóvel. */
 
 function lerVista(){
   try{
     var v=localStorage.getItem('ana-vista');
-    if(v==='c'){ VISTA='c'; return; }
+    if(v==='c'){ VISTA=4; guardarVista(); return; }   /* escolha antiga, já sem opção */
     v=parseInt(v,10);
     if(VISTAS.indexOf(v)>=0) VISTA=v;
   }catch(e){}
@@ -221,12 +222,6 @@ function desenharFiltros(){
 /* --------------------------- selector de vista --------------------------- */
 /* ícone: tantas colunas quantas as obras por fila; 'c' = três cartões em perspectiva */
 function iconeVista(n){
-  if(n==='c'){
-    return '<svg width="20" height="14" viewBox="0 0 20 14" fill="currentColor" aria-hidden="true">'+
-      '<rect x="0" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
-      '<rect x="16" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
-      '<rect x="6" y="0" width="8" height="14" rx="1.5"/></svg>';
-  }
   var vb=18, gap=2, largura=(vb-gap*(n-1))/n, r='';
   for(var i=0;i<n;i++){
     r+='<rect x="'+(i*(largura+gap)).toFixed(2)+'" y="0" width="'+largura.toFixed(2)+'" height="14" rx="1"/>';
@@ -237,14 +232,17 @@ function desenharVista(){
   if(!elVista) return;
   var maxC=maxColunas();
   var estreito = window.innerWidth < 620;
-  var opcoes = estreito ? VISTAS.filter(function(n){ return n==='c' || n<=maxC; }) : VISTAS;
+  var opcoes = estreito ? VISTAS.filter(function(n){ return n<=maxC; }) : VISTAS;
+  /* com uma só opção o selector não é escolha nenhuma */
+  if(opcoes.length<2){ elVista.innerHTML=''; elVista.hidden=true; return; }
+  elVista.hidden=false;
+  var activa = Math.min(VISTA, maxC);   /* o que está mesmo a ser mostrado */
   elVista.innerHTML='<span class="rot mono">Vista</span>'+
     opcoes.map(function(n){
-      var cabe = (n==='c') || n<=maxC;
-      var descricao = (n==='c') ? 'Carrossel — uma obra de cada vez, em perspectiva'
-                    : (n===1?'Uma obra':n+' obras')+' por fila';
+      var cabe = n<=maxC;
+      var descricao = (n===1?'Uma obra':n+' obras')+' por fila';
       return '<button type="button" data-n="'+n+'"'+
-        ' aria-pressed="'+(n===VISTA)+'"'+
+        ' aria-pressed="'+(n===activa)+'"'+
         ' title="'+(cabe?descricao:'Não cabe neste ecrã')+'"'+
         (cabe?'':' disabled')+
         ' aria-label="'+descricao+'">'+iconeVista(n)+'</button>';
@@ -253,9 +251,9 @@ function desenharVista(){
     b.addEventListener('click',function(){
       if(b.disabled) return;
       var primeira=(PAGINA-1)*porPagina;      /* índice da obra que está no topo */
-      VISTA = (b.dataset.n==='c') ? 'c' : parseInt(b.dataset.n,10);
+      VISTA = parseInt(b.dataset.n,10);
       guardarVista();
-      PAGINA = (VISTA==='c') ? 1 : Math.floor(primeira/porPaginaEfectiva())+1;
+      PAGINA = Math.floor(primeira/porPaginaEfectiva())+1;
       desenhar();
     });
   });
@@ -264,7 +262,6 @@ function desenharVista(){
 /* --------------------------- grelha + paginação --------------------------- */
 function larguraColunas(){
   if(modo==='destaque') return Math.min(3, maxColunas());
-  if(VISTA==='c') return 1;
   return Math.min(VISTA, maxColunas());   /* a escolha nunca ultrapassa o que cabe */
 }
 function colunas(lista, n){
@@ -307,20 +304,8 @@ function desenhar(){
     elContagem.textContent = filtradas.length + (filtradas.length===1?' obra':' obras');
   }
 
-  if(VISTA==='c'){
-    /* o carrossel é um anel: mostra tudo, sem paginação */
-    VISIVEIS = filtradas.map(function(o,k){
-      var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
-    });
-    elGrelha.innerHTML=''; elGrelha.hidden=true;
-    elCarrossel.hidden=false;
-    if(filtradas.length) desenharCarrossel(VISIVEIS); else elCarrossel.innerHTML='';
-    desenharVista();
-    if(elPaginacao){ elPaginacao.innerHTML=''; elPaginacao.hidden=true; }
-    return;
-  }
   cfParar();
-  elCarrossel.hidden=true; elCarrossel.innerHTML='';
+  if(elCarrossel){ elCarrossel.hidden=true; elCarrossel.innerHTML=''; }
   elGrelha.hidden=false;
 
   var nCols=larguraColunas();
@@ -433,6 +418,17 @@ function cfPintar(){
       if(desvio > n/2) desvio -= n;
     }
     var d = Math.abs(desvio);
+
+    /* Cada cartão em 3D com will-change vira uma camada composta na GPU. Vinte
+       e oito camadas de 250px a DPR 3 são dezenas de MB de textura, e o iOS mata
+       a página por isso — mesmo com as imagens já leves. Os cartões fora de
+       alcance saem do fluxo: sem caixa, sem camada, sem custo. */
+    if(d > cfAlcance){
+      if(cartao.style.display!=='none') cartao.style.display='none';
+      continue;
+    }
+    if(cartao.style.display==='none') cartao.style.display='';
+
     var rampa = Math.pow(d, CF.falloff);
     /* travado antes do perfil, para um cartão distante nunca virar as costas */
     var inclinacao = Math.min(CF.rotate*rampa, 82) * (desvio<0?-1:(desvio>0?1:0));
@@ -450,6 +446,11 @@ function cfPintar(){
    de um telemóvel e o Safari mata a página. Os cartões ficam pela miniatura;
    só o do meio sobe de qualidade, e depois de pré-carregado para não piscar. */
 var cfNitidos=[], cfRelogioNitidez=null;
+/* quantos cartões de cada lado do centro chegam a existir */
+var cfAlcance=5;
+function cfCalcularAlcance(){
+  cfAlcance = window.innerWidth < 620 ? 3 : 5;
+}
 
 function cfDesnitidar(i){
   var c=cfCartoes[i]; if(!c) return;
@@ -530,6 +531,7 @@ function cfCartaoEm(x,y){
   return melhor;
 }
 function cfMedir(){
+  cfCalcularAlcance();
   var c=cfCartoes[0]; if(!c) return;
   cfLargura=c.offsetWidth;
   cfPintar();
@@ -634,6 +636,7 @@ function desenharCarrossel(lista){
   elCarrossel.querySelector('.cf-prev').addEventListener('click',function(){ cfEmpurrar(-1); });
   elCarrossel.querySelector('.cf-next').addEventListener('click',function(){ cfEmpurrar(1); });
 
+  cfCalcularAlcance();
   cfMedir();
   if('ResizeObserver' in window){
     cfObs=new ResizeObserver(cfMedir);
@@ -747,7 +750,7 @@ function montar(){
     nc=n; mc=m;
     clearTimeout(rt); rt=setTimeout(function(){
       if(!OBRAS.length) return;
-      if(VISTA==='c' && modo==='galeria'){ cfMedir(); desenharVista(); return; }
+      if(modo==='destaque' && window.innerWidth<620){ cfMedir(); return; }
       if(modo==='destaque') desenharDestaque(); else desenhar();
     },160);
   });
