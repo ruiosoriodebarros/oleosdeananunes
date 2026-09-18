@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-04.1';
+var VERSAO = '2026-09-02.1';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -89,13 +89,12 @@ function parseTitulo(raw){
 
 /* ------------------------------------------------------------------ */
 var OBRAS=[], VISIVEIS=[], FILTRO='Todos', PAGINA=1, falhas=0, pronto=false;
-var VISTAS=[4,2,1], VISTA=4;   /* obras por fila. O carrossel deixou de estar aqui;
-                               continua a servir a entrada no telemóvel. */
+var VISTAS=[4,2,1,'c'], VISTA='c';   /* 'c' = carrossel (por defeito), ou 4/2/1 obras por fila */
 
 function lerVista(){
   try{
     var v=localStorage.getItem('ana-vista');
-    if(v==='c'){ VISTA=4; guardarVista(); return; }   /* escolha antiga, já sem opção */
+    if(v==='c'){ VISTA='c'; return; }
     v=parseInt(v,10);
     if(VISTAS.indexOf(v)>=0) VISTA=v;
   }catch(e){}
@@ -182,19 +181,6 @@ function desenharDestaque(){
     var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
   });
   VISIVEIS=obras;
-
-  if(window.innerWidth < 620){
-    /* No telemóvel, seis obras em coluna faziam da entrada uma página de seis
-       ecrãs e enterravam o Sobre e o Contacto. Em carrossel ocupam um. */
-    elGrelha.innerHTML=''; elGrelha.hidden=true;
-    elCarrossel.hidden=false;
-    desenharCarrossel(obras);
-    return;
-  }
-  cfParar();
-  elCarrossel.hidden=true; elCarrossel.innerHTML='';
-  elGrelha.hidden=false;
-
   var nCols=larguraColunas();
   elGrelha.setAttribute('data-cols', String(nCols));
   elGrelha.innerHTML = colunas(obras, nCols);
@@ -222,6 +208,12 @@ function desenharFiltros(){
 /* --------------------------- selector de vista --------------------------- */
 /* ícone: tantas colunas quantas as obras por fila; 'c' = três cartões em perspectiva */
 function iconeVista(n){
+  if(n==='c'){
+    return '<svg width="20" height="14" viewBox="0 0 20 14" fill="currentColor" aria-hidden="true">'+
+      '<rect x="0" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
+      '<rect x="16" y="3" width="4" height="8" rx="1" opacity=".45"/>'+
+      '<rect x="6" y="0" width="8" height="14" rx="1.5"/></svg>';
+  }
   var vb=18, gap=2, largura=(vb-gap*(n-1))/n, r='';
   for(var i=0;i<n;i++){
     r+='<rect x="'+(i*(largura+gap)).toFixed(2)+'" y="0" width="'+largura.toFixed(2)+'" height="14" rx="1"/>';
@@ -232,17 +224,14 @@ function desenharVista(){
   if(!elVista) return;
   var maxC=maxColunas();
   var estreito = window.innerWidth < 620;
-  var opcoes = estreito ? VISTAS.filter(function(n){ return n<=maxC; }) : VISTAS;
-  /* com uma só opção o selector não é escolha nenhuma */
-  if(opcoes.length<2){ elVista.innerHTML=''; elVista.hidden=true; return; }
-  elVista.hidden=false;
-  var activa = Math.min(VISTA, maxC);   /* o que está mesmo a ser mostrado */
+  var opcoes = estreito ? VISTAS.filter(function(n){ return n==='c' || n<=maxC; }) : VISTAS;
   elVista.innerHTML='<span class="rot mono">Vista</span>'+
     opcoes.map(function(n){
-      var cabe = n<=maxC;
-      var descricao = (n===1?'Uma obra':n+' obras')+' por fila';
+      var cabe = (n==='c') || n<=maxC;
+      var descricao = (n==='c') ? 'Carrossel — uma obra de cada vez, em perspectiva'
+                    : (n===1?'Uma obra':n+' obras')+' por fila';
       return '<button type="button" data-n="'+n+'"'+
-        ' aria-pressed="'+(n===activa)+'"'+
+        ' aria-pressed="'+(n===VISTA)+'"'+
         ' title="'+(cabe?descricao:'Não cabe neste ecrã')+'"'+
         (cabe?'':' disabled')+
         ' aria-label="'+descricao+'">'+iconeVista(n)+'</button>';
@@ -251,9 +240,9 @@ function desenharVista(){
     b.addEventListener('click',function(){
       if(b.disabled) return;
       var primeira=(PAGINA-1)*porPagina;      /* índice da obra que está no topo */
-      VISTA = parseInt(b.dataset.n,10);
+      VISTA = (b.dataset.n==='c') ? 'c' : parseInt(b.dataset.n,10);
       guardarVista();
-      PAGINA = Math.floor(primeira/porPaginaEfectiva())+1;
+      PAGINA = (VISTA==='c') ? 1 : Math.floor(primeira/porPaginaEfectiva())+1;
       desenhar();
     });
   });
@@ -262,6 +251,7 @@ function desenharVista(){
 /* --------------------------- grelha + paginação --------------------------- */
 function larguraColunas(){
   if(modo==='destaque') return Math.min(3, maxColunas());
+  if(VISTA==='c') return 1;
   return Math.min(VISTA, maxColunas());   /* a escolha nunca ultrapassa o que cabe */
 }
 function colunas(lista, n){
@@ -276,7 +266,7 @@ function cartao(o, numero){
     'aria-label="Ver '+esc(o.t)+' em detalhe">'+
       '<div class="frame skeleton" data-titulo="'+esc(o.t)+'">'+
         '<img loading="lazy" decoding="async" data-try="0" data-mini="'+esc(o.mini||o.img)+'" '+
-        'src="'+esc(window.innerWidth<620 ? (o.mini||o.img) : o.img)+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
+        'src="'+esc(o.img)+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>'+
       '<figcaption>'+
         '<span class="idx" aria-hidden="true">'+pad(numero)+'</span>'+
@@ -304,8 +294,20 @@ function desenhar(){
     elContagem.textContent = filtradas.length + (filtradas.length===1?' obra':' obras');
   }
 
+  if(VISTA==='c'){
+    /* o carrossel é um anel: mostra tudo, sem paginação */
+    VISIVEIS = filtradas.map(function(o,k){
+      var c=Object.create(o); c.__i=k; c.__n=k+1; return c;
+    });
+    elGrelha.innerHTML=''; elGrelha.hidden=true;
+    elCarrossel.hidden=false;
+    if(filtradas.length) desenharCarrossel(VISIVEIS); else elCarrossel.innerHTML='';
+    desenharVista();
+    if(elPaginacao){ elPaginacao.innerHTML=''; elPaginacao.hidden=true; }
+    return;
+  }
   cfParar();
-  if(elCarrossel){ elCarrossel.hidden=true; elCarrossel.innerHTML=''; }
+  elCarrossel.hidden=true; elCarrossel.innerHTML='';
   elGrelha.hidden=false;
 
   var nCols=larguraColunas();
@@ -418,17 +420,6 @@ function cfPintar(){
       if(desvio > n/2) desvio -= n;
     }
     var d = Math.abs(desvio);
-
-    /* Cada cartão em 3D com will-change vira uma camada composta na GPU. Vinte
-       e oito camadas de 250px a DPR 3 são dezenas de MB de textura, e o iOS mata
-       a página por isso — mesmo com as imagens já leves. Os cartões fora de
-       alcance saem do fluxo: sem caixa, sem camada, sem custo. */
-    if(d > cfAlcance){
-      if(cartao.style.display!=='none') cartao.style.display='none';
-      continue;
-    }
-    if(cartao.style.display==='none') cartao.style.display='';
-
     var rampa = Math.pow(d, CF.falloff);
     /* travado antes do perfil, para um cartão distante nunca virar as costas */
     var inclinacao = Math.min(CF.rotate*rampa, 82) * (desvio<0?-1:(desvio>0?1:0));
@@ -442,47 +433,8 @@ function cfPintar(){
     cartao.style.zIndex  = String(100 - Math.round(d));
   }
 }
-/* Vinte e oito fotografias em tamanho nativo ao mesmo tempo esgotam a memória
-   de um telemóvel e o Safari mata a página. Os cartões ficam pela miniatura;
-   só o do meio sobe de qualidade, e depois de pré-carregado para não piscar. */
-var cfNitidos=[], cfRelogioNitidez=null;
-/* quantos cartões de cada lado do centro chegam a existir */
-var cfAlcance=5;
-function cfCalcularAlcance(){
-  cfAlcance = window.innerWidth < 620 ? 3 : 5;
-}
-
-function cfDesnitidar(i){
-  var c=cfCartoes[i]; if(!c) return;
-  var im=c.querySelector('img'); if(!im) return;
-  if(im.dataset.mini && im.src!==im.dataset.mini){
-    im.src=im.dataset.mini;          /* devolve a memória do bitmap grande */
-    im.dataset.nitido='';
-  }
-}
-function cfNitidez(){
-  clearTimeout(cfRelogioNitidez);
-  /* No telemóvel a moldura tem ~250px: a miniatura chega e sobe-la só gastaria
-     memória — que é exactamente o que fazia o Safari matar a página. */
-  if(window.innerWidth < 620) return;
-  cfRelogioNitidez=setTimeout(function(){
-    var alvo=cfSel, cartao=cfCartoes[alvo]; if(!cartao) return;
-    var im=cartao.querySelector('img'); if(!im) return;
-    var grande=im.dataset.grande;
-    if(!grande || im.dataset.nitido==='1' || im.src===grande) return;
-    var pre=new Image();
-    pre.onload=function(){
-      if(cfSel!==alvo || cfCartoes[alvo]!==cartao) return;   /* já saiu do meio */
-      im.src=grande; im.dataset.nitido='1';
-      cfNitidos.push(alvo);
-      while(cfNitidos.length>2) cfDesnitidar(cfNitidos.shift());
-    };
-    pre.src=grande;
-  }, 320);   /* só depois de o movimento assentar */
-}
 function cfLegenda(){
   var o=cfLista[cfSel]; if(!o) return;
-  cfNitidez();
   var t=document.getElementById('cf-t'), sub=document.getElementById('cf-s'), num=document.getElementById('cf-n');
   if(t) t.textContent=o.t;
   if(sub) sub.textContent=o.m+(o.y?' · '+o.y:'');
@@ -531,7 +483,6 @@ function cfCartaoEm(x,y){
   return melhor;
 }
 function cfMedir(){
-  cfCalcularAlcance();
   var c=cfCartoes[0]; if(!c) return;
   cfLargura=c.offsetWidth;
   cfPintar();
@@ -539,16 +490,13 @@ function cfMedir(){
 
 function desenharCarrossel(lista){
   cfParar();
-  clearTimeout(cfRelogioNitidez);
-  cfNitidos=[];
   cfLista = lista;
   cfPos=0; cfAlvo=0; cfSel=0;
 
   var cartoes = lista.map(function(o,i){
     return '<div class="cf-cartao" data-i="'+i+'" role="group" aria-roledescription="obra" '+
       'aria-label="'+esc(o.t)+' — '+(i+1)+' de '+lista.length+'" data-titulo="'+esc(o.t)+'">'+
-      '<img loading="lazy" decoding="async" draggable="false" data-try="0" '+
-      'src="'+esc(o.mini||o.img)+'" data-grande="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" '+
+      '<img src="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" data-try="0" draggable="false" '+
       'alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>';
   }).join('');
@@ -577,8 +525,8 @@ function desenharCarrossel(lista){
   cfCartoes.forEach(function(cartao){
     var im=cartao.querySelector('img');
     im.addEventListener('error',function(){
-      var n=parseInt(im.dataset.try||'0',10), grande=im.dataset.grande||'';
-      if(n===0 && grande && grande!==im.src){ im.dataset.try='1'; im.src=grande; return; }
+      var n=parseInt(im.dataset.try||'0',10), mini=im.dataset.mini||'';
+      if(n===0 && mini && mini!==im.src){ im.dataset.try='1'; im.src=mini; return; }
       cartao.classList.add('falhou');
     });
   });
@@ -586,11 +534,7 @@ function desenharCarrossel(lista){
   /* arrastar com o rato ou o dedo */
   cfFrame.addEventListener('pointerdown',function(e){
     if(cfRaf!==null){ cancelAnimationFrame(cfRaf); cfRaf=null; }
-    /* Em toque, o navegador pode já não ter o ponteiro activo quando chegamos
-       aqui e o setPointerCapture atira uma excepção que matava o arrasto todo.
-       A captura é uma conveniência, não um requisito: sem ela os eventos
-       continuam a chegar ao frame. */
-    try{ cfFrame.setPointerCapture(e.pointerId); }catch(err){}
+    cfFrame.setPointerCapture(e.pointerId);
     cfAlvo=cfPos;
     cfArrasto={ id:e.pointerId, x:e.clientX, y:e.clientY, pos:cfPos, v:0,
                 t:performance.now(), andou:0 };
@@ -636,7 +580,6 @@ function desenharCarrossel(lista){
   elCarrossel.querySelector('.cf-prev').addEventListener('click',function(){ cfEmpurrar(-1); });
   elCarrossel.querySelector('.cf-next').addEventListener('click',function(){ cfEmpurrar(1); });
 
-  cfCalcularAlcance();
   cfMedir();
   if('ResizeObserver' in window){
     cfObs=new ResizeObserver(cfMedir);
@@ -722,7 +665,7 @@ function montar(){
         '<div class="vista" id="vista" role="group" aria-label="Obras por fila"></div>'+
       '</div>' : '')+
     '<div class="grid" id="grelha"></div>'+
-    '<div class="carrossel" id="carrossel" hidden></div>'+
+    (modo==='galeria' ? '<div class="carrossel" id="carrossel" hidden></div>' : '')+
     '<p class="state" id="estado">A carregar as obras…</p>'+
     '<div class="aviso" id="aviso" hidden><p><strong>As imagens não carregaram.</strong> '+
       'As fotografias das obras estão alojadas no blogue da Ana (Blogger/Google) e são pedidas quando alguém abre a página. '+
@@ -750,7 +693,7 @@ function montar(){
     nc=n; mc=m;
     clearTimeout(rt); rt=setTimeout(function(){
       if(!OBRAS.length) return;
-      if(modo==='destaque' && window.innerWidth<620){ cfMedir(); return; }
+      if(VISTA==='c' && modo==='galeria'){ cfMedir(); desenharVista(); return; }
       if(modo==='destaque') desenharDestaque(); else desenhar();
     },160);
   });

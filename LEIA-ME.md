@@ -47,29 +47,20 @@ Com 28 obras (e a crescer), uma página só obrigava a percorrer a galeria toda 
 - Cada página de galeria tem endereço próprio (`obra.html#pagina-2`), por isso pode ser partilhada.
 - A numeração das obras é contínua entre páginas — a obra 13 continua a ser a 13.
 
-A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar. **No telemóvel a entrada é outra.** Em coluna, as seis obras faziam dela uma página de 6,6 ecrãs, com o Contacto só a aparecer ao fim de 5,6. Três coisas mudaram, e só abaixo dos 620px:
-
-1. As obras recentes vão em carrossel — ocupam um ecrã em vez de seis, e continuam lá todas.
-2. Os atalhos para o **Sobre** e o **Contacto** sobem para logo a seguir ao herói, antes das obras.
-3. O herói perde a fila de etiquetas ("Óleo sobre tela", "Retrato"…), que em coluna ocupava três linhas sem acrescentar nada, e o título encolhe.
-
-**O Contacto passou de 5,6 para 0,87 ecrãs** — está a menos de um deslize. A entrada inteira mede agora 2,6 ecrãs. No computador não mudou nada: grelha de três colunas, etiquetas visíveis, atalhos no fim.
-
-Como os atalhos passam à frente, a numeração decorativa (Nº 01, 02, 03) ficaria fora de ordem no telemóvel, por isso está escondida nessa largura.
+A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintura, sem ter de navegar.
 
 ## Vista da galeria
 
-No canto direito da barra de filtros há um selector **Vista**, com três ícones em que o número de barras é o número de obras por fila:
+No canto direito da barra de filtros há um selector **Vista**, com quatro ícones:
 
-- **▮▮▮▮** — quatro por fila, vista de catálogo. É a vista por defeito.
+- **▮▮▮▮** — quatro por fila, vista de catálogo, para percorrer muita obra depressa.
 - **▮▮** — duas por fila, meio-termo.
 - **▮** — uma por fila, grande, centrada até 820px.
+- **▪▮▪** — **carrossel**: as obras em perspectiva, uma de cada vez ao centro. **É a vista por defeito.**
 
-Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o mesmo texto vai em `aria-label`. Quando o ecrã só permite uma opção, o selector não aparece — não seria escolha nenhuma.
+Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o mesmo texto vai em `aria-label`.
 
-**O carrossel foi retirado desta página.** Continua a servir a entrada no telemóvel, que é onde ganha: seis obras num ecrã em vez de seis. A página Obra volta a ser sempre grelha, com paginação.
-
-### O carrossel (agora só na entrada, no telemóvel)
+### O carrossel
 
 É o componente *CoverflowCarousel* (React + Tailwind + TypeScript) reescrito em JavaScript simples, porque o site não usa React nem passo de compilação. A mecânica é a do original, com os mesmos valores por defeito: `rotate 44 · depth 0.6 · perspective 3 · falloff 0.56 · fade 0.1 · gap 0.05 · loop`.
 
@@ -77,6 +68,7 @@ Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o 
 - Tocar num cartão lateral traz-o para o meio; tocar no do meio abre a obra em grande.
 - Setas ← → do teclado percorrem; Enter abre. As setas nos cantos fazem o mesmo ao clique.
 - O anel fecha-se: depois da última obra vem a primeira, sem clones nem reordenar nós.
+- Sem paginação — mostra o catálogo inteiro, e os filtros por técnica continuam a funcionar.
 - Com `prefers-reduced-motion` não há animação: salta directamente para a obra escolhida.
 
 Duas diferenças face ao original, ambas deliberadas. Os cartões mostram a pintura **contida** numa moldura quadrada com passe-partout, em vez de cortada a toda a largura — cortar uma tela para caber num quadrado é inaceitável num site de pintura. E o toque é decidido pela geometria dos cartões e não por `elementFromPoint`, porque o Chromium não faz teste de toque fiável em elementos rodados em 3D e os cartões laterais ficavam mortos ao clique.
@@ -87,7 +79,7 @@ Quem chega pela primeira vez vê o carrossel. A partir daí, a escolha fica guar
 
 O número de obras por página acompanha a densidade — 12 com 4 por fila, 8 com 2, 6 com 1 — para que a página não fique interminável na vista grande. Ao mudar de vista, a obra que estava no topo continua na página que passa a ser mostrada, em vez de saltar para o início.
 
-Em ecrãs estreitos a escolha é limitada ao que cabe: até 2 por fila abaixo de 1020px, e 1 ou carrossel abaixo de 620px.
+Em ecrãs estreitos a escolha é limitada ao que cabe: até 2 por fila abaixo de 1020px, e sempre 1 abaixo de 620px (aí o selector desaparece, por não ter nada para escolher).
 
 ## Fundo animado
 
@@ -116,28 +108,6 @@ Convenção de títulos a manter nos posts:
 - `Ilustração - Nome` → *Nome*, "Ilustração"
 
 O ano vem da data do post. Os filtros são gerados a partir do que existe. Se o blogue estiver inacessível, entra a lista de 28 obras gravada no `assets/obras.js`.
-
-## Peso das imagens (porque o telemóvel deixou de crashar)
-
-O Blogger publica dois endereços por obra: a miniatura (`/s320/`) e o tamanho nativo (`/s2311/` ou semelhante, com vários MB). O carrossel mostra as 28 obras ao mesmo tempo — carregá-las todas em tamanho nativo esgotava a memória e o Safari do iPhone matava a página com *"Um problema ocorreu repetidamente"*.
-
-Regra actual:
-
-- **Cartões da galeria e do carrossel: miniatura.** No telemóvel, sempre. No computador, a grelha usa o tamanho nativo (as molduras são grandes e o aparelho aguenta).
-- **Obra aberta em grande: tamanho nativo, sempre.** É aí que a qualidade conta.
-- **Carrossel no computador:** a obra que está ao centro sobe para o tamanho nativo, 320 ms depois de o movimento assentar e pré-carregada para não piscar. Nunca há mais de duas em memória — a terceira faz a mais antiga voltar à miniatura, libertando o bitmap.
-- **Carrossel no telemóvel:** não sobe. A moldura tem ~250px e a miniatura chega; subir só gastaria a memória que causava o problema.
-
-Medido com fotografias realistas: a página Obra no telemóvel passou de dezenas de MB para **0,16 MB**; a entrada, para 0,03 MB.
-
-### Camadas na GPU
-
-Havia uma segunda causa, independente do peso das imagens — e foi esta que realmente derrubava o telemóvel. Cada cartão em 3D com `will-change:transform` vira uma camada composta na GPU; 28 camadas de 250px a DPR 3 são dezenas de MB de textura, e o iOS mata a página por isso mesmo com as fotografias já leves.
-
-Duas mudanças:
-
-- **Só existem os cartões dentro do alcance** — 3 de cada lado no telemóvel (7 no total), 5 no computador (11). Os restantes ficam em `display:none`: sem caixa, sem camada, sem custo. O anel continua a fechar-se, e os cartões voltam ao fluxo quando se aproximam.
-- **No telemóvel o `will-change` está desligado.** Com poucos cartões visíveis deixa de compensar e só reserva memória.
 
 ## Se as imagens não aparecerem
 
