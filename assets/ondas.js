@@ -66,11 +66,16 @@ function Ondas(canvas){
   var rato={ x:-10, y:0, lx:0, ly:0, sx:0, sy:0, v:0, vs:0, a:0, dentro:false };
   var tempo=0, af=null, ultimo=0;
   var parado = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* telemóveis: menos linhas, resolução 1x e 30fps — com opacidade .28 não se nota */
+  var leve = window.matchMedia('(pointer: coarse)').matches || window.innerWidth<820;
+  var xGap = leve ? 20 : OPCOES.xGap, fps = leve ? 30 : 45;
+  var medidoL=0, medidoA=0;
 
   function medir(){
     var r=canvas.getBoundingClientRect();
     largura=r.width; altura=r.height;
-    dpr=Math.min(window.devicePixelRatio||1, 2);
+    dpr=leve ? 1 : Math.min(window.devicePixelRatio||1, 2);
+    medidoL=largura; medidoA=altura;
     canvas.width=Math.round(largura*dpr);
     canvas.height=Math.round(altura*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -79,15 +84,15 @@ function Ondas(canvas){
   function construirLinhas(){
     linhas=[];
     var oLargura=largura+200, oAltura=altura+30;
-    var totalLinhas=Math.ceil(oLargura/OPCOES.xGap);
+    var totalLinhas=Math.ceil(oLargura/xGap);
     var totalPontos=Math.ceil(oAltura/OPCOES.yGap);
-    var xIni=(largura-OPCOES.xGap*totalLinhas)/2;
+    var xIni=(largura-xGap*totalLinhas)/2;
     var yIni=(altura-OPCOES.yGap*totalPontos)/2;
     for(var i=0;i<=totalLinhas;i++){
       var pts=[];
       for(var j=0;j<=totalPontos;j++){
         pts.push({
-          x:xIni+OPCOES.xGap*i, y:yIni+OPCOES.yGap*j,
+          x:xIni+xGap*i, y:yIni+OPCOES.yGap*j,
           onda:{x:0,y:0}, cursor:{x:0,y:0,vx:0,vy:0}
         });
       }
@@ -171,7 +176,7 @@ function Ondas(canvas){
 
   function ciclo(ts){
     af=requestAnimationFrame(ciclo);
-    if(ts-ultimo<1000/45) return;       /* travar a ~45fps, chega e poupa bateria */
+    if(ts-ultimo<1000/fps) return;      /* travar a 45fps (30 no telemóvel), poupa bateria */
     ultimo=ts;
     if(document.hidden || document.body.classList.contains('lb-open')) return;
     tempo+=16;
@@ -199,7 +204,13 @@ function Ondas(canvas){
     var rt;
     window.addEventListener('resize',function(){
       clearTimeout(rt);
-      rt=setTimeout(function(){ medir(); construirLinhas(); },200);
+      rt=setTimeout(function(){
+        /* no telemóvel a barra do browser aparece/desaparece ao fazer scroll e
+           dispara resize; só reconstruir se o tamanho mudou mesmo */
+        var r=canvas.getBoundingClientRect();
+        if(r.width===medidoL && Math.abs(r.height-medidoA)<160) return;
+        medir(); construirLinhas();
+      },200);
     });
   };
 }

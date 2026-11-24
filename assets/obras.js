@@ -16,7 +16,7 @@
 (function(){
 'use strict';
 
-var VERSAO = '2026-09-02.1';
+var VERSAO = '2026-11-24.2';
 var BLOG = 'oleosdeananunes.blogspot.com';
 try{ console.log('Óleos de Ana Nunes — galeria versão '+VERSAO); }catch(e){}
 
@@ -64,6 +64,16 @@ function pad(n){
   return n<10 ? ('0'+n) : String(n);
 }
 
+/* Versão média de uma imagem do Blogger (máx. 1000px) para grelha e carrossel.
+   O original (~2300px) só entra na lightbox. Se a média falhar, o fallback
+   para a miniatura já existente trata disso. */
+function medio(u){
+  if(!u) return u;
+  return u
+    .replace(/\/s(\d{3,5})(-[^\/]*)?\//, function(m,n,x){ return +n>1000 ? '/s1000'+(x||'')+'/' : m; })
+    .replace(/=s(\d{3,5})(-[^\/=]*)?$/,  function(m,n,x){ return +n>1000 ? '=s1000'+(x||'') : m; });
+}
+
 var PREFIXOS = [
   {re:/^tela\s+a\s+[óo]leo\s*[-–—:]\s*/i,      m:'Óleo sobre tela'},
   {re:/^quadro\s+a\s+[óo]leo\s*[-–—:]\s*/i,    m:'Óleo sobre tela'},
@@ -107,6 +117,18 @@ function porPaginaEfectiva(){
   if(n>=4) return 12;      /* 3 filas */
   if(n===2) return 8;      /* 4 filas */
   return 6;                /* uma por fila: página curta */
+}
+/* No telemóvel não há carrossel: é sempre uma obra por fila.
+   A preferência guardada não muda, por isso no computador o carrossel volta. */
+function telemovel(){ return window.innerWidth < 620; }
+var vistaPorTelemovel=false;
+function ajustarVista(){
+  if(telemovel()){
+    if(VISTA==='c'){ VISTA=1; vistaPorTelemovel=true; }
+  } else if(vistaPorTelemovel){
+    vistaPorTelemovel=false;
+    if(VISTA===1) VISTA='c';
+  }
 }
 function maxColunas(){
   return window.innerWidth<620 ? 1 : (window.innerWidth<1020 ? 2 : 4);
@@ -222,9 +244,13 @@ function iconeVista(n){
 }
 function desenharVista(){
   if(!elVista) return;
+  ajustarVista();
   var maxC=maxColunas();
-  var estreito = window.innerWidth < 620;
-  var opcoes = estreito ? VISTAS.filter(function(n){ return n==='c' || n<=maxC; }) : VISTAS;
+  var estreito = telemovel();
+  /* no telemóvel só existe a vista de uma por fila: o selector não tem escolha a oferecer */
+  elVista.hidden = estreito;
+  if(estreito){ elVista.innerHTML=''; return; }
+  var opcoes = VISTAS;
   elVista.innerHTML='<span class="rot mono">Vista</span>'+
     opcoes.map(function(n){
       var cabe = (n==='c') || n<=maxC;
@@ -241,6 +267,7 @@ function desenharVista(){
       if(b.disabled) return;
       var primeira=(PAGINA-1)*porPagina;      /* índice da obra que está no topo */
       VISTA = (b.dataset.n==='c') ? 'c' : parseInt(b.dataset.n,10);
+      vistaPorTelemovel=false;
       guardarVista();
       PAGINA = (VISTA==='c') ? 1 : Math.floor(primeira/porPaginaEfectiva())+1;
       desenhar();
@@ -266,7 +293,7 @@ function cartao(o, numero){
     'aria-label="Ver '+esc(o.t)+' em detalhe">'+
       '<div class="frame skeleton" data-titulo="'+esc(o.t)+'">'+
         '<img loading="lazy" decoding="async" data-try="0" data-mini="'+esc(o.mini||o.img)+'" '+
-        'src="'+esc(o.img)+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
+        'src="'+esc(medio(o.img))+'" alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>'+
       '<figcaption>'+
         '<span class="idx" aria-hidden="true">'+pad(numero)+'</span>'+
@@ -277,6 +304,7 @@ function cartao(o, numero){
 }
 
 function desenhar(){
+  ajustarVista();
   var filtradas = OBRAS.filter(function(o){ return FILTRO==='Todos' || o.m===FILTRO; });
   porPagina = porPaginaEfectiva();
   var totalPaginas = Math.max(1, Math.ceil(filtradas.length/porPagina));
@@ -431,6 +459,23 @@ function cfPintar(){
     var bordo = CF.loop ? Math.min(1, Math.max(0, n/2 - d)) : 1;
     cartao.style.opacity = String(Math.max(0, 1 - CF.fade*d) * bordo);
     cartao.style.zIndex  = String(100 - Math.round(d));
+    cfVisivel(cartao, d);
+  }
+}
+/* Só os cartões perto do centro existem de facto: os outros ficam com
+   display:none e sem imagem. Com 170+ obras, ter todas carregadas e cada uma
+   na sua camada 3D esgotava a memória dos telemóveis e o separador ia abaixo. */
+function cfAlcance(){ return window.innerWidth<620 ? 3 : 7; }
+function cfVisivel(cartao, d){
+  var im=cartao.querySelector('img');
+  if(d <= cfAlcance()){
+    if(cartao.style.display==='none') cartao.style.display='';
+    if(im && !im.getAttribute('src')){
+      im.src = im.dataset.try==='1' ? im.dataset.mini : im.dataset.src;
+    }
+  } else if(cartao.style.display!=='none'){
+    cartao.style.display='none';
+    if(im && d > cfAlcance()+3) im.removeAttribute('src');   /* liberta a memória */
   }
 }
 function cfLegenda(){
@@ -483,8 +528,10 @@ function cfCartaoEm(x,y){
   return melhor;
 }
 function cfMedir(){
-  var c=cfCartoes[0]; if(!c) return;
-  cfLargura=c.offsetWidth;
+  /* o palco tem a altura de um cartão, e os cartões são quadrados;
+     medir um cartão falhava quando esse estava escondido */
+  if(!cfPalco) return;
+  cfLargura=cfPalco.offsetHeight;
   cfPintar();
 }
 
@@ -496,7 +543,8 @@ function desenharCarrossel(lista){
   var cartoes = lista.map(function(o,i){
     return '<div class="cf-cartao" data-i="'+i+'" role="group" aria-roledescription="obra" '+
       'aria-label="'+esc(o.t)+' — '+(i+1)+' de '+lista.length+'" data-titulo="'+esc(o.t)+'">'+
-      '<img src="'+esc(o.img)+'" data-mini="'+esc(o.mini||o.img)+'" data-try="0" draggable="false" '+
+      '<img data-src="'+esc(medio(o.img))+'" data-mini="'+esc(o.mini||o.img)+'" data-try="0" draggable="false" '+
+      'decoding="async" '+
       'alt="'+esc(o.t)+' — '+esc(o.m)+(o.y?', '+o.y:'')+'">'+
       '</div>';
   }).join('');
@@ -686,6 +734,7 @@ function montar(){
   construirLightbox();
   carregar();
 
+  ajustarVista();
   var nc=larguraColunas(), mc=maxColunas(), rt;
   window.addEventListener('resize',function(){
     var n=larguraColunas(), m=maxColunas();
@@ -693,7 +742,7 @@ function montar(){
     nc=n; mc=m;
     clearTimeout(rt); rt=setTimeout(function(){
       if(!OBRAS.length) return;
-      if(VISTA==='c' && modo==='galeria'){ cfMedir(); desenharVista(); return; }
+      if(VISTA==='c' && modo==='galeria' && !telemovel()){ cfMedir(); desenharVista(); return; }
       if(modo==='destaque') desenharDestaque(); else desenhar();
     },160);
   });
