@@ -65,7 +65,10 @@ function Ondas(canvas){
   var linhas=[], largura=0, altura=0, dpr=1;
   var rato={ x:-10, y:0, lx:0, ly:0, sx:0, sy:0, v:0, vs:0, a:0, dentro:false };
   var tempo=0, af=null, ultimo=0;
-  var parado = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* No browser interno do Instagram/Facebook a memória é curta e o separador
+     ia abaixo: aí as ondas ficam desenhadas mas paradas. */
+  var appInterna = /Instagram|FBAN|FBAV|FB_IAB|Messenger|TikTok|musical_ly/i.test(navigator.userAgent||'');
+  var parado = appInterna || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   /* telemóveis: menos linhas, resolução 1x e 30fps — com opacidade .28 não se nota */
   var leve = window.matchMedia('(pointer: coarse)').matches || window.innerWidth<820;
   var xGap = leve ? 20 : OPCOES.xGap, fps = leve ? 30 : 45;

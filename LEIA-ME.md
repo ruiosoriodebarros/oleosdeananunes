@@ -51,31 +51,17 @@ A página de entrada mostra as 6 obras mais recentes: quem chega vê logo pintur
 
 ## Vista da galeria
 
-No canto direito da barra de filtros há um selector **Vista**, com quatro ícones:
+No canto direito da barra de filtros há um selector **Vista**, com três ícones:
 
-- **▮▮▮▮** — quatro por fila, vista de catálogo, para percorrer muita obra depressa.
+- **▮▮▮▮** — quatro por fila, vista de catálogo, para percorrer muita obra depressa. **É a vista por defeito.**
 - **▮▮** — duas por fila, meio-termo.
 - **▮** — uma por fila, grande, centrada até 820px.
-- **▪▮▪** — **carrossel**: as obras em perspectiva, uma de cada vez ao centro. **É a vista por defeito.**
 
 Ao passar o rato por cima, cada ícone diz o que faz. Para leitores de ecrã, o mesmo texto vai em `aria-label`.
 
-### O carrossel
+O carrossel (coverflow 3D) foi retirado: com 170+ obras esgotava a memória dos telemóveis, sobretudo no browser interno do Instagram, e a página ia abaixo.
 
-É o componente *CoverflowCarousel* (React + Tailwind + TypeScript) reescrito em JavaScript simples, porque o site não usa React nem passo de compilação. A mecânica é a do original, com os mesmos valores por defeito: `rotate 44 · depth 0.6 · perspective 3 · falloff 0.56 · fade 0.1 · gap 0.05 · loop`.
-
-- Arrasta-se com o rato ou com o dedo, e o impulso leva até dois cartões.
-- Tocar num cartão lateral traz-o para o meio; tocar no do meio abre a obra em grande.
-- Setas ← → do teclado percorrem; Enter abre. As setas nos cantos fazem o mesmo ao clique.
-- O anel fecha-se: depois da última obra vem a primeira, sem clones nem reordenar nós.
-- Sem paginação — mostra o catálogo inteiro, e os filtros por técnica continuam a funcionar.
-- Com `prefers-reduced-motion` não há animação: salta directamente para a obra escolhida.
-
-Duas diferenças face ao original, ambas deliberadas. Os cartões mostram a pintura **contida** numa moldura quadrada com passe-partout, em vez de cortada a toda a largura — cortar uma tela para caber num quadrado é inaceitável num site de pintura. E o toque é decidido pela geometria dos cartões e não por `elementFromPoint`, porque o Chromium não faz teste de toque fiável em elementos rodados em 3D e os cartões laterais ficavam mortos ao clique.
-
-Em ecrãs estreitos o selector mostra só as opções que cabem — uma por fila e carrossel.
-
-Quem chega pela primeira vez vê o carrossel. A partir daí, a escolha fica guardada no navegador dessa pessoa e é ela que manda nas visitas seguintes — o valor por defeito só se aplica a quem ainda não escolheu.
+Quem chega pela primeira vez vê quatro por fila (ou o que couber no ecrã). A partir daí, a escolha fica guardada no navegador dessa pessoa.
 
 O número de obras por página acompanha a densidade — 12 com 4 por fila, 8 com 2, 6 com 1 — para que a página não fique interminável na vista grande. Ao mudar de vista, a obra que estava no topo continua na página que passa a ser mostrada, em vez de saltar para o início.
 
